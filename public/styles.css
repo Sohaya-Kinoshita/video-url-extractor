@@ -8,7 +8,6 @@
   --accent: #0f766e;
   --accent-strong: #0b5f59;
   --accent-soft: #e2f4f1;
-  --warn: #a64912;
   --error: #b42318;
   --shadow: 0 16px 40px rgba(31, 42, 55, 0.1);
 }
@@ -235,11 +234,6 @@ h2 {
 
 .copy-button:hover {
   background: #111a22;
-}
-
-.empty-state {
-  padding: 24px 22px;
-  color: var(--muted);
 }
 
 @media (max-width: 680px) {

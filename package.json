@@ -1,0 +1,13 @@
+{
+  "name": "video-url-extractor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler pages dev public",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.34.0"
+  }
+}

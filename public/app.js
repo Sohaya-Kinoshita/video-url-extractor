@@ -27,11 +27,11 @@ form.addEventListener("submit", async (event) => {
 
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.detail || "解析に失敗しました。");
+      throw new Error(payload.error || "解析に失敗しました。");
     }
 
     renderResults(payload.results || []);
-    setStatus(`${payload.page_url} を解析しました。`);
+    setStatus(`${payload.pageUrl} を解析しました。`);
   } catch (error) {
     renderResults([]);
     setStatus(error.message || "解析に失敗しました。", true);

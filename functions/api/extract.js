@@ -18,7 +18,7 @@ export async function onRequestPost({ request }) {
     const primaryResults = [
       ...(await extractKnownProviderUrls(pageUrl)),
       ...extractVideoUrls(html, pageUrl),
-    ].map((result) => ({ ...result, sourcePage: pageUrl }));
+    ].map((result) => ({ ...result, sourcePage: result.sourcePage || pageUrl }));
 
     const linkedPageResults =
       body.scanLinkedPages === false

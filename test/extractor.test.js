@@ -173,13 +173,11 @@ describe("extractLinkedPageUrls", () => {
 
 describe("extractKnownProviderUrls", () => {
   it("extracts Vilolo media URLs from the provider API", async () => {
+    const requestedUrls = [];
     const results = await extractKnownProviderUrls(
       "https://video.twimg-image.com/jVU9c2",
       async (url) => {
-        assert.equal(
-          url.toString(),
-          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=jVU9c2&domain=video.twimg-image.com",
-        );
+        requestedUrls.push(url.toString());
 
         return Response.json({
           code: 0,
@@ -197,6 +195,10 @@ describe("extractKnownProviderUrls", () => {
       },
     );
 
+    assert.deepEqual(requestedUrls, [
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=jVU9c2&domain=video.twimg-image.com",
+    ]);
+
     assert.deepEqual(results, [
       {
         url: "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/playlist.m3u8",
@@ -209,13 +211,11 @@ describe("extractKnownProviderUrls", () => {
   });
 
   it("supports mvfile pages reached from t.co redirects", async () => {
+    const requestedUrls = [];
     const results = await extractKnownProviderUrls(
       "https://cdn4.mvfile.com/WuSf1I",
       async (url) => {
-        assert.equal(
-          url.toString(),
-          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=WuSf1I&domain=cdn4.mvfile.com",
-        );
+        requestedUrls.push(url.toString());
 
         return Response.json({
           code: 0,
@@ -233,6 +233,10 @@ describe("extractKnownProviderUrls", () => {
       },
     );
 
+    assert.deepEqual(requestedUrls, [
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=WuSf1I&domain=cdn4.mvfile.com",
+    ]);
+
     assert.deepEqual(results, [
       {
         url: "https://vid.fun800.click/d804fec8-bce5-45c1-a604-58a58ff11bda/playlist.m3u8",
@@ -240,6 +244,67 @@ describe("extractKnownProviderUrls", () => {
         source: "Vilolo media API",
         thumbnailUrl:
           "https://vid.fun800.click/net-disk-cover/20260907/2ea94d08-e265-4984-aa8c-644db339aad4.jpg",
+      },
+    ]);
+  });
+
+  it("extracts related videos from the lower video list", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://cdn4.mvfile.com/WuSf1I",
+      async (url) => {
+        const requestUrl = url.toString();
+        if (requestUrl.includes("/flow/land-page/getInfo")) {
+          return Response.json({
+            code: 0,
+            data: {
+              info: {
+                netDiskInfo: {
+                  fileUrl:
+                    "https://vid.fun800.click/current/playlist.m3u8",
+                  coverImage: "https://vid.fun800.click/current/thumbnail.jpg",
+                },
+                extraInfo: {
+                  externalLinks: "1zAbXY",
+                  sortOrder: "3",
+                },
+              },
+            },
+          });
+        }
+
+        assert.equal(
+          requestUrl,
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/list_by_links_page?externalLinks=1zAbXY&domain=cdn4.mvfile.com&pageNo=1&pageSize=20&sortOrder=3",
+        );
+
+        return Response.json({
+          code: 0,
+          data: {
+            list: [
+              {
+                landingPage: "A1VIjM",
+                coverImage: "https://vid.fun800.click/related/thumbnail.jpg",
+                m3u8Url: "https://vid.fun800.click/related/playlist.m3u8",
+              },
+            ],
+          },
+        });
+      },
+    );
+
+    assert.deepEqual(results, [
+      {
+        url: "https://vid.fun800.click/current/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo media API",
+        thumbnailUrl: "https://vid.fun800.click/current/thumbnail.jpg",
+      },
+      {
+        url: "https://vid.fun800.click/related/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo related API",
+        thumbnailUrl: "https://vid.fun800.click/related/thumbnail.jpg",
+        sourcePage: "https://cdn4.mvfile.com/A1VIjM",
       },
     ]);
   });

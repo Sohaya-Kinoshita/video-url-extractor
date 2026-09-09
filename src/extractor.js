@@ -40,6 +40,8 @@ const THUMBNAIL_KEYS = [
   "thumbnailurl",
 ];
 const VILOLO_PAGE_HOST_RE = /^(video\.twimg-image\.com|cdn\d+\.mvfile\.com)$/;
+const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
+const RELATED_VIDEO_LIMIT = 20;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
 const MEDIA_ATTRS = [
   "src",
@@ -238,9 +240,72 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
     return [];
   }
 
-  const apiUrl = new URL("https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo");
-  apiUrl.searchParams.set("externalLinks", shortLink);
-  apiUrl.searchParams.set("domain", url.hostname);
+  const payload = await fetchViloloJson(
+    "/flow/land-page/getInfo",
+    {
+      externalLinks: shortLink,
+      domain: url.hostname,
+    },
+    fetchImpl,
+  );
+
+  if (!payload) {
+    return [];
+  }
+
+  const currentResults = extractFromJson(payload, pageUrl, "Vilolo media API");
+  const relatedResults = await extractViloloRelatedUrls(
+    payload,
+    url.hostname,
+    pageUrl,
+    fetchImpl,
+  );
+
+  return dedupeCandidates([...currentResults, ...relatedResults]);
+}
+
+async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
+  const externalLinks = getNestedValue(payload, [
+    "data",
+    "info",
+    "extraInfo",
+    "externalLinks",
+  ]);
+  if (!externalLinks) {
+    return [];
+  }
+
+  const sortOrder =
+    getNestedValue(payload, ["data", "info", "extraInfo", "sortOrder"]) || "3";
+  const relatedPayload = await fetchViloloJson(
+    "/flow/land-page/list_by_links_page",
+    {
+      externalLinks,
+      domain,
+      pageNo: "1",
+      pageSize: String(RELATED_VIDEO_LIMIT),
+      sortOrder,
+    },
+    fetchImpl,
+  );
+
+  if (!relatedPayload) {
+    return [];
+  }
+
+  return extractFromJson(relatedPayload, pageUrl, "Vilolo related API")
+    .map((result) => ({
+      ...result,
+      sourcePage: buildViloloLandingPageUrl(domain, result.landingPage) || pageUrl,
+    }))
+    .map(({ landingPage, ...result }) => result);
+}
+
+async function fetchViloloJson(path, params, fetchImpl) {
+  const apiUrl = new URL(`${VILOLO_API_BASE}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    apiUrl.searchParams.set(key, value);
+  });
 
   const response = await fetchImpl(apiUrl, {
     headers: { Accept: "application/json" },
@@ -248,21 +313,27 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   });
 
   if (!response.ok) {
-    return [];
+    return null;
   }
 
-  let payload;
   try {
-    payload = await response.json();
+    const payload = await response.json();
+    return payload?.code === 0 ? payload : null;
   } catch {
-    return [];
+    return null;
+  }
+}
+
+function getNestedValue(value, path) {
+  return path.reduce((current, key) => current?.[key], value) || "";
+}
+
+function buildViloloLandingPageUrl(domain, landingPage) {
+  if (!landingPage) {
+    return "";
   }
 
-  if (payload?.code !== 0) {
-    return [];
-  }
-
-  return extractFromJson(payload, pageUrl, "Vilolo media API");
+  return `https://${domain}/${encodeURIComponent(landingPage)}`;
 }
 
 export function extractLinkedPageUrls(html, pageUrl, limit = 8) {
@@ -290,6 +361,27 @@ export function extractLinkedPageUrls(html, pageUrl, limit = 8) {
   }
 
   return links;
+}
+
+function dedupeCandidates(candidates) {
+  const deduped = new Map();
+
+  for (const candidate of candidates) {
+    if (!deduped.has(candidate.url)) {
+      deduped.set(candidate.url, candidate);
+      continue;
+    }
+
+    const existing = deduped.get(candidate.url);
+    deduped.set(candidate.url, {
+      ...existing,
+      ...Object.fromEntries(
+        Object.entries(candidate).filter(([, value]) => value && value !== ""),
+      ),
+    });
+  }
+
+  return [...deduped.values()];
 }
 
 function extractFromTags(html, pageUrl) {
@@ -335,10 +427,10 @@ function extractFromTags(html, pageUrl) {
 function extractFromJson(value, pageUrl, source) {
   const candidates = [];
   const seen = new Set();
-  visitJson(value, "");
+  visitJson(value, "", "");
   return candidates;
 
-  function visitJson(item, inheritedThumbnailUrl) {
+  function visitJson(item, inheritedThumbnailUrl, inheritedLandingPage) {
     if (typeof item === "string") {
       const normalized = normalizeUrl(item, pageUrl);
       if (normalized && isVideoFile(normalized) && !seen.has(normalized)) {
@@ -350,19 +442,28 @@ function extractFromJson(value, pageUrl, source) {
           ...(inheritedThumbnailUrl
             ? { thumbnailUrl: inheritedThumbnailUrl }
             : {}),
+          ...(inheritedLandingPage ? { landingPage: inheritedLandingPage } : {}),
         });
       }
       return;
     }
 
     if (Array.isArray(item)) {
-      item.forEach((child) => visitJson(child, inheritedThumbnailUrl));
+      item.forEach((child) =>
+        visitJson(child, inheritedThumbnailUrl, inheritedLandingPage),
+      );
       return;
     }
 
     if (item && typeof item === "object") {
       const thumbnailUrl = findThumbnailUrl(item, pageUrl) || inheritedThumbnailUrl;
-      Object.values(item).forEach((child) => visitJson(child, thumbnailUrl));
+      const landingPage =
+        typeof item.landingPage === "string"
+          ? item.landingPage
+          : inheritedLandingPage;
+      Object.values(item).forEach((child) =>
+        visitJson(child, thumbnailUrl, landingPage),
+      );
     }
   }
 }

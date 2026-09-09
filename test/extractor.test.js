@@ -6,6 +6,8 @@ import {
   extractLinkedPageUrls,
   extractVideoUrls,
   getDownloadFileName,
+  getTransportStreamFileName,
+  parseHlsPlaylist,
   normalizeUrl,
   validateDownloadUrl,
   validatePageUrl,
@@ -107,6 +109,49 @@ describe("getDownloadFileName", () => {
       getDownloadFileName("https://example.com/media/bad:name.mp4?token=1"),
       "bad_name.mp4",
     );
+  });
+});
+
+describe("getTransportStreamFileName", () => {
+  it("uses a ts extension", () => {
+    assert.equal(
+      getTransportStreamFileName("https://example.com/media/playlist.m3u8"),
+      "playlist.ts",
+    );
+  });
+});
+
+describe("parseHlsPlaylist", () => {
+  it("chooses variants by bandwidth", () => {
+    const playlist = parseHlsPlaylist(
+      `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=1000
+low/video.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2000
+high/video.m3u8`,
+      "https://example.com/master.m3u8",
+    );
+
+    assert.deepEqual(playlist.variants, [
+      { url: "https://example.com/high/video.m3u8", bandwidth: 2000 },
+      { url: "https://example.com/low/video.m3u8", bandwidth: 1000 },
+    ]);
+  });
+
+  it("extracts segment URLs", () => {
+    const playlist = parseHlsPlaylist(
+      `#EXTM3U
+#EXTINF:4,
+video0.ts
+#EXTINF:4,
+video1.ts`,
+      "https://example.com/720p/video.m3u8",
+    );
+
+    assert.deepEqual(playlist.segments, [
+      "https://example.com/720p/video0.ts",
+      "https://example.com/720p/video1.ts",
+    ]);
   });
 });
 

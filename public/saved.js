@@ -52,9 +52,10 @@ function renderSavedVideos() {
     const openButton = createButton("開く", "open-button", () => {
       openSavedUrl(item.url);
     });
-    const saveButton = createButton("保存", "save-button", (button) => {
+    const saveText = item.kind === "hls" ? "TS保存" : "保存";
+    const saveButton = createButton(saveText, "save-button", (button) => {
       window.videoUrlStorage.downloadUrl(item.url);
-      flashButton(button, "開始", "保存");
+      flashButton(button, "開始", saveText);
     });
     const copyButton = createButton("コピー", "copy-button", async (button) => {
       await navigator.clipboard.writeText(item.url);

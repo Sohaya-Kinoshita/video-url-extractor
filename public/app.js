@@ -130,10 +130,10 @@ function renderResults(results) {
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.className = "save-button";
-    saveButton.textContent = "保存";
+    saveButton.textContent = item.kind === "hls" ? "TS保存" : "保存";
     saveButton.addEventListener("click", () => {
       window.videoUrlStorage.downloadUrl(item.url);
-      flashButton(saveButton, "開始", "保存");
+      flashButton(saveButton, "開始", item.kind === "hls" ? "TS保存" : "保存");
     });
 
     const copyButton = document.createElement("button");

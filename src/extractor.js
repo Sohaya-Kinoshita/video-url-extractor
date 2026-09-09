@@ -120,10 +120,61 @@ export function validateDownloadUrl(value) {
   return url;
 }
 
+export function isHlsUrl(url) {
+  return new URL(url).pathname.toLowerCase().endsWith(".m3u8");
+}
+
 export function getDownloadFileName(url) {
   const parsed = new URL(url);
   const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
   return sanitizeFileName(lastSegment || "video");
+}
+
+export function getTransportStreamFileName(url) {
+  return getDownloadFileName(url).replace(/\.[^.]+$/, "") + ".ts";
+}
+
+export function parseHlsPlaylist(text, playlistUrl) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.some((line) => line.startsWith("#EXT-X-KEY"))) {
+    throw httpError("暗号化されたHLSは保存できません。", 400);
+  }
+
+  if (lines.some((line) => line.startsWith("#EXT-X-MAP"))) {
+    throw httpError("このHLS形式は保存に対応していません。", 400);
+  }
+
+  const variants = [];
+  const segments = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.startsWith("#EXT-X-STREAM-INF")) {
+      const nextLine = lines[index + 1];
+      if (nextLine && !nextLine.startsWith("#")) {
+        variants.push({
+          url: new URL(nextLine, playlistUrl).toString(),
+          bandwidth: Number(line.match(/BANDWIDTH=(\d+)/)?.[1] || 0),
+        });
+      }
+      continue;
+    }
+
+    if (!line.startsWith("#")) {
+      segments.push(new URL(line, playlistUrl).toString());
+    }
+  }
+
+  variants.sort((a, b) => b.bandwidth - a.bandwidth);
+
+  return {
+    variants,
+    segments: variants.length ? [] : segments,
+  };
 }
 
 export async function fetchHtml(url) {
@@ -424,7 +475,7 @@ function shouldSkipLinkedPage(url) {
 }
 
 function kindForUrl(url) {
-  return new URL(url).pathname.toLowerCase().endsWith(".m3u8") ? "hls" : "file";
+  return isHlsUrl(url) ? "hls" : "file";
 }
 
 function sanitizeFileName(value) {

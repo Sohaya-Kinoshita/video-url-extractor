@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { extractVideoUrls, normalizeUrl, validatePageUrl } from "../src/extractor.js";
+import {
+  extractKnownProviderUrls,
+  extractVideoUrls,
+  normalizeUrl,
+  validatePageUrl,
+} from "../src/extractor.js";
 
 describe("extractVideoUrls", () => {
   it("extracts video and source URLs", () => {
@@ -61,5 +66,41 @@ describe("normalizeUrl", () => {
 describe("validatePageUrl", () => {
   it("rejects private URLs", () => {
     assert.throws(() => validatePageUrl("http://127.0.0.1:8000"), /公開Webページ/);
+  });
+});
+
+describe("extractKnownProviderUrls", () => {
+  it("extracts video.twimg-image media URLs from the provider API", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://video.twimg-image.com/jVU9c2",
+      async (url) => {
+        assert.equal(
+          url.toString(),
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=jVU9c2&domain=video.twimg-image.com",
+        );
+
+        return Response.json({
+          code: 0,
+          data: {
+            info: {
+              netDiskInfo: {
+                fileUrl:
+                  "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/playlist.m3u8",
+                previewUrl:
+                  "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/preview.webp",
+              },
+            },
+          },
+        });
+      },
+    );
+
+    assert.deepEqual(results, [
+      {
+        url: "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/playlist.m3u8",
+        kind: "hls",
+        source: "video.twimg-image API",
+      },
+    ]);
   });
 });

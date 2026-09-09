@@ -1,5 +1,6 @@
 import {
   extractVideoUrls,
+  extractKnownProviderUrls,
   fetchHtml,
   jsonResponse,
   readJsonBody,
@@ -11,7 +12,10 @@ export async function onRequestPost({ request }) {
     const body = await readJsonBody(request);
     const targetUrl = validatePageUrl(body.url);
     const { html, pageUrl } = await fetchHtml(targetUrl);
-    const results = extractVideoUrls(html, pageUrl);
+    const results = dedupeResults([
+      ...(await extractKnownProviderUrls(pageUrl)),
+      ...extractVideoUrls(html, pageUrl),
+    ]);
 
     return jsonResponse({
       pageUrl,
@@ -28,4 +32,16 @@ export async function onRequestPost({ request }) {
 
 export async function onRequestGet() {
   return jsonResponse({ error: "POSTでURLを送信してください。" }, 405);
+}
+
+function dedupeResults(results) {
+  const deduped = new Map();
+
+  for (const result of results) {
+    if (!deduped.has(result.url)) {
+      deduped.set(result.url, result);
+    }
+  }
+
+  return [...deduped.values()];
 }

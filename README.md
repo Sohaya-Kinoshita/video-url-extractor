@@ -26,6 +26,12 @@ https://<your-project>.pages.dev/sample.html
 https://<your-domain>.dev/sample.html
 ```
 
+次のような `video.twimg-image.com` の短縮ページにも対応しています。
+
+```text
+https://video.twimg-image.com/jVU9c2
+```
+
 ## ローカル起動
 
 Node.jsが入っている環境で実行します。

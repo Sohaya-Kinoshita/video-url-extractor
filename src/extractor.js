@@ -117,6 +117,45 @@ export function extractVideoUrls(html, pageUrl) {
   return [...deduped.values()];
 }
 
+export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
+  const url = new URL(pageUrl);
+
+  if (url.hostname !== "video.twimg-image.com") {
+    return [];
+  }
+
+  const shortLink = url.pathname.split("/").filter(Boolean)[0];
+  if (!shortLink) {
+    return [];
+  }
+
+  const apiUrl = new URL("https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo");
+  apiUrl.searchParams.set("externalLinks", shortLink);
+  apiUrl.searchParams.set("domain", url.hostname);
+
+  const response = await fetchImpl(apiUrl, {
+    headers: { Accept: "application/json" },
+    redirect: "follow",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    return [];
+  }
+
+  if (payload?.code !== 0) {
+    return [];
+  }
+
+  return extractFromJson(payload, pageUrl, "video.twimg-image API");
+}
+
 function extractFromTags(html, pageUrl) {
   const candidates = [];
 
@@ -152,6 +191,37 @@ function extractFromTags(html, pageUrl) {
   }
 
   return candidates;
+}
+
+function extractFromJson(value, pageUrl, source) {
+  const candidates = [];
+  const seen = new Set();
+  visitJson(value);
+  return candidates;
+
+  function visitJson(item) {
+    if (typeof item === "string") {
+      const normalized = normalizeUrl(item, pageUrl);
+      if (normalized && isVideoFile(normalized) && !seen.has(normalized)) {
+        seen.add(normalized);
+        candidates.push({
+          url: normalized,
+          kind: kindForUrl(normalized),
+          source,
+        });
+      }
+      return;
+    }
+
+    if (Array.isArray(item)) {
+      item.forEach(visitJson);
+      return;
+    }
+
+    if (item && typeof item === "object") {
+      Object.values(item).forEach(visitJson);
+    }
+  }
 }
 
 function extractFromText(html, pageUrl) {

@@ -236,6 +236,13 @@ h2 {
   background: #111a22;
 }
 
+.last-updated {
+  margin: 14px 2px 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
 @media (max-width: 680px) {
   .app-shell {
     width: min(100% - 24px, 1040px);
@@ -250,5 +257,9 @@ h2 {
   button,
   .copy-button {
     width: 100%;
+  }
+
+  .last-updated {
+    text-align: left;
   }
 }

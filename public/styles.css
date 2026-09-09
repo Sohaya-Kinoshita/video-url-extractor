@@ -191,11 +191,15 @@ h2 {
 
 .result-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   padding: 18px 22px;
+}
+
+.result-item--without-thumbnail {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .result-item:last-child {
@@ -209,6 +213,15 @@ h2 {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.thumbnail {
+  width: 120px;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #edf1f5;
+  object-fit: cover;
 }
 
 .meta {
@@ -252,6 +265,11 @@ h2 {
   .input-row,
   .result-item {
     grid-template-columns: 1fr;
+  }
+
+  .thumbnail {
+    width: 100%;
+    max-width: 280px;
   }
 
   button,

@@ -58,6 +58,17 @@ function renderResults(results) {
     const row = document.createElement("article");
     row.className = "result-item";
 
+    if (item.thumbnailUrl) {
+      const thumbnail = document.createElement("img");
+      thumbnail.className = "thumbnail";
+      thumbnail.src = item.thumbnailUrl;
+      thumbnail.alt = "";
+      thumbnail.loading = "lazy";
+      row.appendChild(thumbnail);
+    } else {
+      row.classList.add("result-item--without-thumbnail");
+    }
+
     const content = document.createElement("div");
     const urlText = document.createElement("span");
     urlText.className = "url-text";

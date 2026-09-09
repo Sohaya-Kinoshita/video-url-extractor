@@ -52,6 +52,19 @@ describe("extractVideoUrls", () => {
       },
     ]);
   });
+
+  it("extracts video poster thumbnails", () => {
+    const html = '<video src="/movie.mp4" poster="/thumb.webp"></video>';
+
+    assert.deepEqual(extractVideoUrls(html, "https://example.com/page"), [
+      {
+        url: "https://example.com/movie.mp4",
+        kind: "file",
+        source: "<video> src",
+        thumbnailUrl: "https://example.com/thumb.webp",
+      },
+    ]);
+  });
 });
 
 describe("normalizeUrl", () => {
@@ -100,6 +113,8 @@ describe("extractKnownProviderUrls", () => {
         url: "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/playlist.m3u8",
         kind: "hls",
         source: "video.twimg-image API",
+        thumbnailUrl:
+          "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/preview.webp",
       },
     ]);
   });

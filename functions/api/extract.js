@@ -40,6 +40,12 @@ function dedupeResults(results) {
   for (const result of results) {
     if (!deduped.has(result.url)) {
       deduped.set(result.url, result);
+      continue;
+    }
+
+    const existing = deduped.get(result.url);
+    if (!existing.thumbnailUrl && result.thumbnailUrl) {
+      deduped.set(result.url, { ...existing, thumbnailUrl: result.thumbnailUrl });
     }
   }
 

@@ -1,4 +1,14 @@
 const VIDEO_EXTENSIONS = ["mp4", "m3u8", "webm", "mov", "m4v", "ogv"];
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif"];
+const THUMBNAIL_KEYS = [
+  "cover",
+  "coverimage",
+  "image",
+  "poster",
+  "previewurl",
+  "thumbnail",
+  "thumbnailurl",
+];
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
 const MEDIA_ATTRS = [
   "src",
@@ -163,6 +173,8 @@ function extractFromTags(html, pageUrl) {
     const tag = match.groups.tag.toLowerCase();
     const attrs = parseAttrs(match.groups.attrs || "");
     const type = (attrs.type || "").toLowerCase();
+    const thumbnailUrl =
+      tag === "video" ? normalizeThumbnailUrl(attrs.poster, pageUrl) : null;
     const isDirectMediaTag =
       tag === "video" ||
       (tag === "source" &&
@@ -185,6 +197,7 @@ function extractFromTags(html, pageUrl) {
           url: normalized,
           kind: isVideoFile(normalized) ? kindForUrl(normalized) : "embed",
           source: `<${tag}> ${attr}`,
+          ...(thumbnailUrl ? { thumbnailUrl } : {}),
         });
       }
     }
@@ -196,10 +209,10 @@ function extractFromTags(html, pageUrl) {
 function extractFromJson(value, pageUrl, source) {
   const candidates = [];
   const seen = new Set();
-  visitJson(value);
+  visitJson(value, "");
   return candidates;
 
-  function visitJson(item) {
+  function visitJson(item, inheritedThumbnailUrl) {
     if (typeof item === "string") {
       const normalized = normalizeUrl(item, pageUrl);
       if (normalized && isVideoFile(normalized) && !seen.has(normalized)) {
@@ -208,20 +221,39 @@ function extractFromJson(value, pageUrl, source) {
           url: normalized,
           kind: kindForUrl(normalized),
           source,
+          ...(inheritedThumbnailUrl
+            ? { thumbnailUrl: inheritedThumbnailUrl }
+            : {}),
         });
       }
       return;
     }
 
     if (Array.isArray(item)) {
-      item.forEach(visitJson);
+      item.forEach((child) => visitJson(child, inheritedThumbnailUrl));
       return;
     }
 
     if (item && typeof item === "object") {
-      Object.values(item).forEach(visitJson);
+      const thumbnailUrl = findThumbnailUrl(item, pageUrl) || inheritedThumbnailUrl;
+      Object.values(item).forEach((child) => visitJson(child, thumbnailUrl));
     }
   }
+}
+
+function findThumbnailUrl(item, pageUrl) {
+  for (const [key, value] of Object.entries(item)) {
+    if (!THUMBNAIL_KEYS.includes(key.toLowerCase()) || typeof value !== "string") {
+      continue;
+    }
+
+    const normalized = normalizeThumbnailUrl(value, pageUrl);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
 }
 
 function extractFromText(html, pageUrl) {
@@ -296,6 +328,16 @@ function decodeHtmlEntities(value) {
 function isVideoFile(url) {
   const path = new URL(url).pathname.toLowerCase();
   return VIDEO_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`));
+}
+
+function normalizeThumbnailUrl(rawValue, pageUrl) {
+  const normalized = normalizeUrl(rawValue, pageUrl);
+  if (!normalized) return "";
+
+  const path = new URL(normalized).pathname.toLowerCase();
+  return IMAGE_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`))
+    ? normalized
+    : "";
 }
 
 function kindForUrl(url) {

@@ -1,9 +1,21 @@
 const form = document.querySelector("#extract-form");
 const urlInput = document.querySelector("#page-url");
+const pasteButton = document.querySelector("#paste-button");
 const submitButton = document.querySelector("#submit-button");
 const statusEl = document.querySelector("#status");
 const resultsEl = document.querySelector("#results");
 const countEl = document.querySelector("#result-count");
+
+pasteButton.addEventListener("click", async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    urlInput.value = text.trim();
+    urlInput.focus();
+    setStatus("クリップボードから貼り付けました。");
+  } catch {
+    setStatus("ブラウザの権限によりペーストできませんでした。", true);
+  }
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -88,10 +100,26 @@ function renderResults(results) {
     openButton.className = "open-button";
     openButton.textContent = "開く";
     openButton.addEventListener("click", () => {
-      window.videoUrlStorage.saveVideoUrl(item);
       const opened = window.open(item.url, "_blank", "noopener,noreferrer");
       if (opened) opened.opener = null;
-      flashButton(openButton, "保存済み", "開く");
+    });
+
+    const rememberButton = document.createElement("button");
+    rememberButton.type = "button";
+    rememberButton.className = "remember-button";
+    rememberButton.textContent = "記憶";
+    rememberButton.addEventListener("click", () => {
+      window.videoUrlStorage.saveVideoUrl(item);
+      flashButton(rememberButton, "記憶済み", "記憶");
+    });
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "save-button";
+    saveButton.textContent = "保存";
+    saveButton.addEventListener("click", () => {
+      window.videoUrlStorage.downloadUrl(item.url);
+      flashButton(saveButton, "開始", "保存");
     });
 
     const copyButton = document.createElement("button");
@@ -103,7 +131,7 @@ function renderResults(results) {
       flashButton(copyButton, "完了", "コピー");
     });
 
-    actions.append(openButton, copyButton);
+    actions.append(openButton, rememberButton, saveButton, copyButton);
     row.append(content, actions);
     resultsEl.appendChild(row);
   }

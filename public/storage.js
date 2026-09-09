@@ -39,8 +39,30 @@
     writeSavedVideos(readSavedVideos().filter((item) => item.url !== url));
   }
 
+  function downloadUrl(url) {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = suggestFileName(url);
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  function suggestFileName(url) {
+    try {
+      const parsed = new URL(url);
+      const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
+      return lastSegment || "video";
+    } catch {
+      return "video";
+    }
+  }
+
   window.videoUrlStorage = {
     deleteSavedVideo,
+    downloadUrl,
     readSavedVideos,
     saveVideoUrl,
   };

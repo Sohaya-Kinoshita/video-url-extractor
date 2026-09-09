@@ -52,6 +52,10 @@ function renderSavedVideos() {
     const openButton = createButton("開く", "open-button", () => {
       openSavedUrl(item.url);
     });
+    const saveButton = createButton("保存", "save-button", (button) => {
+      window.videoUrlStorage.downloadUrl(item.url);
+      flashButton(button, "開始", "保存");
+    });
     const copyButton = createButton("コピー", "copy-button", async (button) => {
       await navigator.clipboard.writeText(item.url);
       flashButton(button, "完了", "コピー");
@@ -61,7 +65,7 @@ function renderSavedVideos() {
       renderSavedVideos();
     });
 
-    actions.append(openButton, copyButton, deleteButton);
+    actions.append(openButton, saveButton, copyButton, deleteButton);
     row.append(content, actions);
     savedResultsEl.appendChild(row);
   }

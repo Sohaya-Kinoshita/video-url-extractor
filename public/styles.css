@@ -115,7 +115,7 @@ h1 {
 
 .input-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
 }
 
@@ -258,11 +258,13 @@ h2 {
   font-weight: 700;
 }
 
+.paste-button,
 .copy-button {
   min-width: 86px;
   background: #22303c;
 }
 
+.paste-button:hover,
 .copy-button:hover {
   background: #111a22;
 }
@@ -275,9 +277,27 @@ h2 {
 }
 
 .open-button,
+.remember-button,
+.save-button,
 .copy-button,
 .delete-button {
   min-width: 76px;
+}
+
+.remember-button {
+  background: #6d5f12;
+}
+
+.remember-button:hover {
+  background: #51470d;
+}
+
+.save-button {
+  background: #245f8f;
+}
+
+.save-button:hover {
+  background: #1b486c;
 }
 
 .delete-button {
@@ -312,8 +332,11 @@ h2 {
   }
 
   button,
+  .paste-button,
   .copy-button,
   .open-button,
+  .remember-button,
+  .save-button,
   .delete-button {
     width: 100%;
   }

@@ -10,6 +10,8 @@ Build command: exit 0
 Build output directory: public
 ```
 
+`wrangler.toml` でも `pages_build_output_dir = "public"` を指定しています。
+
 ## 動作確認用URL
 
 デプロイ後、抽出フォームには次のように自分のPages URLの末尾に `/sample.html` を付けて入力します。

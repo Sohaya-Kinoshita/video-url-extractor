@@ -10,6 +10,20 @@ Build command: exit 0
 Build output directory: public
 ```
 
+## 動作確認用URL
+
+デプロイ後、抽出フォームには次のように自分のPages URLの末尾に `/sample.html` を付けて入力します。
+
+```text
+https://<your-project>.pages.dev/sample.html
+```
+
+カスタムドメイン設定後は次の形式でも確認できます。
+
+```text
+https://<your-domain>.dev/sample.html
+```
+
 ## ローカル起動
 
 Node.jsが入っている環境で実行します。

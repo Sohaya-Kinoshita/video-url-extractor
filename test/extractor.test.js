@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   extractKnownProviderUrls,
+  extractLinkedPageUrls,
   extractVideoUrls,
   normalizeUrl,
   validatePageUrl,
@@ -79,6 +80,22 @@ describe("normalizeUrl", () => {
 describe("validatePageUrl", () => {
   it("rejects private URLs", () => {
     assert.throws(() => validatePageUrl("http://127.0.0.1:8000"), /公開Webページ/);
+  });
+});
+
+describe("extractLinkedPageUrls", () => {
+  it("extracts page links while skipping files", () => {
+    const html = `
+      <a href="/watch/1">watch</a>
+      <a href="https://example.com/movie.mp4">file</a>
+      <a href="javascript:void(0)">bad</a>
+      <a href="https://cdn4.mvfile.com/WuSf1I">mvfile</a>
+    `;
+
+    assert.deepEqual(extractLinkedPageUrls(html, "https://example.com/start"), [
+      "https://example.com/watch/1",
+      "https://cdn4.mvfile.com/WuSf1I",
+    ]);
   });
 });
 

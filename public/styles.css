@@ -119,6 +119,16 @@ h1 {
   gap: 10px;
 }
 
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 input {
   width: 100%;
   min-height: 48px;
@@ -128,6 +138,12 @@ input {
   color: var(--text);
   font: inherit;
   outline: none;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--accent);
 }
 
 input:focus {

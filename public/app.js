@@ -1,10 +1,13 @@
 const form = document.querySelector("#extract-form");
 const urlInput = document.querySelector("#page-url");
 const pasteButton = document.querySelector("#paste-button");
+const scanLinkedPagesInput = document.querySelector("#scan-linked-pages");
 const submitButton = document.querySelector("#submit-button");
 const statusEl = document.querySelector("#status");
 const resultsEl = document.querySelector("#results");
 const countEl = document.querySelector("#result-count");
+
+restoreTemporaryExtraction();
 
 pasteButton.addEventListener("click", async () => {
   try {
@@ -31,10 +34,11 @@ form.addEventListener("submit", async (event) => {
   renderResults([]);
 
   try {
+    const scanLinkedPages = scanLinkedPagesInput.checked;
     const response = await fetch("/api/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, scanLinkedPages }),
     });
 
     const payload = await response.json();
@@ -42,8 +46,17 @@ form.addEventListener("submit", async (event) => {
       throw new Error(payload.error || "解析に失敗しました。");
     }
 
-    renderResults(payload.results || []);
-    setStatus(`${payload.pageUrl} を解析しました。`);
+    const results = payload.results || [];
+    renderResults(results);
+    window.videoUrlStorage.saveTemporaryExtraction({
+      inputUrl: url,
+      pageUrl: payload.pageUrl,
+      results,
+      scanLinkedPages,
+      scannedPageCount: payload.scannedPageCount || 1,
+      savedAt: new Date().toISOString(),
+    });
+    setStatus(buildExtractedMessage(payload.pageUrl, payload.scannedPageCount || 1));
   } catch (error) {
     renderResults([]);
     setStatus(error.message || "解析に失敗しました。", true);
@@ -89,6 +102,7 @@ function renderResults(results) {
     const meta = document.createElement("div");
     meta.className = "meta";
     meta.append(createBadge(item.kind), createBadge(item.source));
+    if (item.sourcePage) meta.append(createBadge(new URL(item.sourcePage).hostname));
 
     content.append(urlText, meta);
 
@@ -151,6 +165,7 @@ function setStatus(message, isError = false) {
 
 function setLoading(isLoading) {
   submitButton.disabled = isLoading;
+  pasteButton.disabled = isLoading;
   submitButton.textContent = isLoading ? "解析中..." : "抽出";
 }
 
@@ -159,4 +174,26 @@ function flashButton(button, doneText, originalText) {
   setTimeout(() => {
     button.textContent = originalText;
   }, 1200);
+}
+
+function restoreTemporaryExtraction() {
+  const temporaryExtraction = window.videoUrlStorage.readTemporaryExtraction();
+  if (!temporaryExtraction?.results?.length) {
+    return;
+  }
+
+  urlInput.value = temporaryExtraction.inputUrl || "";
+  scanLinkedPagesInput.checked = temporaryExtraction.scanLinkedPages !== false;
+  renderResults(temporaryExtraction.results);
+  setStatus(
+    buildExtractedMessage(
+      temporaryExtraction.pageUrl || temporaryExtraction.inputUrl || "前回のURL",
+      temporaryExtraction.scannedPageCount || 1,
+    ),
+  );
+}
+
+function buildExtractedMessage(pageUrl, scannedPageCount) {
+  const pageText = scannedPageCount > 1 ? `${scannedPageCount}ページ` : "1ページ";
+  return `${pageUrl} を解析しました。探索: ${pageText}`;
 }

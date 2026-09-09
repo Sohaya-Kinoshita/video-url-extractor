@@ -1,5 +1,6 @@
 (function () {
   const STORAGE_KEY = "video-url-extractor:saved-videos";
+  const TEMP_EXTRACTION_KEY = "video-url-extractor:temporary-extraction";
 
   function readSavedVideos() {
     try {
@@ -60,10 +61,24 @@
     }
   }
 
+  function readTemporaryExtraction() {
+    try {
+      return JSON.parse(sessionStorage.getItem(TEMP_EXTRACTION_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function saveTemporaryExtraction(payload) {
+    sessionStorage.setItem(TEMP_EXTRACTION_KEY, JSON.stringify(payload));
+  }
+
   window.videoUrlStorage = {
     deleteSavedVideo,
     downloadUrl,
+    readTemporaryExtraction,
     readSavedVideos,
     saveVideoUrl,
+    saveTemporaryExtraction,
   };
 })();

@@ -1,5 +1,35 @@
 const VIDEO_EXTENSIONS = ["mp4", "m3u8", "webm", "mov", "m4v", "ogv"];
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif"];
+const NON_PAGE_EXTENSIONS = [
+  "7z",
+  "avi",
+  "css",
+  "csv",
+  "doc",
+  "docx",
+  "exe",
+  "gz",
+  "ico",
+  "jpeg",
+  "jpg",
+  "js",
+  "json",
+  "m4v",
+  "mov",
+  "mp3",
+  "mp4",
+  "pdf",
+  "png",
+  "rar",
+  "svg",
+  "ts",
+  "txt",
+  "webm",
+  "webp",
+  "xls",
+  "xlsx",
+  "zip",
+];
 const THUMBNAIL_KEYS = [
   "cover",
   "coverimage",
@@ -23,7 +53,8 @@ const MEDIA_ATTRS = [
   "content",
 ];
 
-const TAG_RE = /<(?<tag>video|source|iframe|embed|object|meta|link)\b(?<attrs>[^>]*)>/gi;
+const TAG_RE = /<(?<tag>video|source|iframe|embed|object|meta|link|a)\b(?<attrs>[^>]*)>/gi;
+const ANCHOR_RE = /<a\b(?<attrs>[^>]*)>/gi;
 const ATTR_RE = /([\w:-]+)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
 const ABSOLUTE_VIDEO_RE = new RegExp(
   `((?:https?:)?//[^\\s"'<>]+?\\.(?:${VIDEO_EXTENSIONS.join("|")})(?:\\?[^\\s"'<>]*)?)`,
@@ -165,6 +196,33 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   }
 
   return extractFromJson(payload, pageUrl, "Vilolo media API");
+}
+
+export function extractLinkedPageUrls(html, pageUrl, limit = 8) {
+  const links = [];
+  const seen = new Set([new URL(pageUrl).toString()]);
+
+  for (const match of html.matchAll(ANCHOR_RE)) {
+    const attrs = parseAttrs(match.groups.attrs || "");
+    const linkedUrl = normalizeUrl(attrs.href, pageUrl);
+    if (!linkedUrl || seen.has(linkedUrl) || shouldSkipLinkedPage(linkedUrl)) {
+      continue;
+    }
+
+    try {
+      validatePageUrl(linkedUrl);
+    } catch {
+      continue;
+    }
+
+    seen.add(linkedUrl);
+    links.push(linkedUrl);
+    if (links.length >= limit) {
+      break;
+    }
+  }
+
+  return links;
 }
 
 function extractFromTags(html, pageUrl) {
@@ -339,6 +397,14 @@ function normalizeThumbnailUrl(rawValue, pageUrl) {
   return IMAGE_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`))
     ? normalized
     : "";
+}
+
+function shouldSkipLinkedPage(url) {
+  const parsed = new URL(url);
+  if (!["http:", "https:"].includes(parsed.protocol)) return true;
+
+  const extension = parsed.pathname.split(".").pop()?.toLowerCase() || "";
+  return NON_PAGE_EXTENSIONS.includes(extension);
 }
 
 function kindForUrl(url) {

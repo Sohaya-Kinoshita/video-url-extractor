@@ -80,19 +80,31 @@ function renderResults(results) {
 
     content.append(urlText, meta);
 
+    const actions = document.createElement("div");
+    actions.className = "action-group";
+
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "open-button";
+    openButton.textContent = "開く";
+    openButton.addEventListener("click", () => {
+      window.videoUrlStorage.saveVideoUrl(item);
+      const opened = window.open(item.url, "_blank", "noopener,noreferrer");
+      if (opened) opened.opener = null;
+      flashButton(openButton, "保存済み", "開く");
+    });
+
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.className = "copy-button";
     copyButton.textContent = "コピー";
     copyButton.addEventListener("click", async () => {
       await navigator.clipboard.writeText(item.url);
-      copyButton.textContent = "完了";
-      setTimeout(() => {
-        copyButton.textContent = "コピー";
-      }, 1200);
+      flashButton(copyButton, "完了", "コピー");
     });
 
-    row.append(content, copyButton);
+    actions.append(openButton, copyButton);
+    row.append(content, actions);
     resultsEl.appendChild(row);
   }
 }
@@ -112,4 +124,11 @@ function setStatus(message, isError = false) {
 function setLoading(isLoading) {
   submitButton.disabled = isLoading;
   submitButton.textContent = isLoading ? "解析中..." : "抽出";
+}
+
+function flashButton(button, doneText, originalText) {
+  button.textContent = doneText;
+  setTimeout(() => {
+    button.textContent = originalText;
+  }, 1200);
 }

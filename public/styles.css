@@ -41,6 +41,24 @@ body {
   margin-bottom: 28px;
 }
 
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nav-link {
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  text-decoration: underline;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: var(--accent);
@@ -249,6 +267,27 @@ h2 {
   background: #111a22;
 }
 
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.open-button,
+.copy-button,
+.delete-button {
+  min-width: 76px;
+}
+
+.delete-button {
+  background: #8f2f24;
+}
+
+.delete-button:hover {
+  background: #6f2119;
+}
+
 .last-updated {
   margin: 14px 2px 0;
   color: var(--muted);
@@ -273,8 +312,16 @@ h2 {
   }
 
   button,
-  .copy-button {
+  .copy-button,
+  .open-button,
+  .delete-button {
     width: 100%;
+  }
+
+  .page-nav,
+  .action-group {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .last-updated {

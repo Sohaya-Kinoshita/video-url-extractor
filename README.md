@@ -33,6 +33,14 @@ https://video.twimg-image.com/jVU9c2
 https://t.co/2YTXpnPofC
 ```
 
+## 保存リスト
+
+抽出結果の「開く」ボタンを押すと、動画URLを別タブで開き、そのURLを端末のブラウザ内に保存します。保存済みURLは次のページで確認、再度開く、コピー、削除できます。
+
+```text
+https://<your-project>.pages.dev/saved.html
+```
+
 ## ローカル起動
 
 Node.jsが入っている環境で実行します。

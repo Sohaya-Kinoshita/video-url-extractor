@@ -9,7 +9,10 @@
   <body>
     <main class="app-shell">
       <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">Video URL Extractor</p>
+        <div class="page-nav">
+          <p class="eyebrow">Video URL Extractor</p>
+          <a class="nav-link" href="/saved.html">保存リストへ</a>
+        </div>
         <h1 id="page-title">Webページ内の動画URLを抽出</h1>
         <p class="lead">
           ページURLを入力すると、HTML内の <span>.mp4</span> や <span>.m3u8</span>、
@@ -47,9 +50,10 @@
         </div>
       </section>
 
-      <p class="last-updated">最終更新: 2026-09-09 09:31 JST</p>
+      <p class="last-updated">最終更新: 2026-09-09 09:34 JST</p>
     </main>
 
+    <script src="/storage.js"></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

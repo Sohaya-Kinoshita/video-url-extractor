@@ -166,7 +166,7 @@ function setStatus(message, isError = false) {
 function setLoading(isLoading) {
   submitButton.disabled = isLoading;
   pasteButton.disabled = isLoading;
-  submitButton.textContent = isLoading ? "解析中..." : "抽出";
+  submitButton.textContent = isLoading ? "探索中..." : "探索";
 }
 
 function flashButton(button, doneText, originalText) {

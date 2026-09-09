@@ -41,10 +41,15 @@
   }
 
   function downloadUrl(url) {
+    const downloadHref = `/api/download?url=${encodeURIComponent(url)}`;
+    if (isIOS()) {
+      window.location.href = downloadHref;
+      return;
+    }
+
     const anchor = document.createElement("a");
-    anchor.href = url;
+    anchor.href = downloadHref;
     anchor.download = suggestFileName(url);
-    anchor.target = "_blank";
     anchor.rel = "noopener noreferrer";
     document.body.appendChild(anchor);
     anchor.click();
@@ -59,6 +64,10 @@
     } catch {
       return "video";
     }
+  }
+
+  function isIOS() {
+    return /iP(hone|ad|od)/.test(navigator.userAgent);
   }
 
   function readTemporaryExtraction() {

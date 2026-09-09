@@ -5,7 +5,9 @@ import {
   extractKnownProviderUrls,
   extractLinkedPageUrls,
   extractVideoUrls,
+  getDownloadFileName,
   normalizeUrl,
+  validateDownloadUrl,
   validatePageUrl,
 } from "../src/extractor.js";
 
@@ -80,6 +82,31 @@ describe("normalizeUrl", () => {
 describe("validatePageUrl", () => {
   it("rejects private URLs", () => {
     assert.throws(() => validatePageUrl("http://127.0.0.1:8000"), /公開Webページ/);
+  });
+});
+
+describe("validateDownloadUrl", () => {
+  it("allows video file URLs", () => {
+    assert.equal(
+      validateDownloadUrl("https://example.com/media/video.m3u8"),
+      "https://example.com/media/video.m3u8",
+    );
+  });
+
+  it("rejects non-video file URLs", () => {
+    assert.throws(
+      () => validateDownloadUrl("https://example.com/index.html"),
+      /保存できる動画URL/,
+    );
+  });
+});
+
+describe("getDownloadFileName", () => {
+  it("returns a safe file name", () => {
+    assert.equal(
+      getDownloadFileName("https://example.com/media/bad:name.mp4?token=1"),
+      "bad_name.mp4",
+    );
   });
 });
 

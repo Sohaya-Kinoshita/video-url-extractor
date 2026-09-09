@@ -286,10 +286,10 @@ h2 {
 }
 
 .action-group {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  justify-content: flex-end;
+  min-width: 328px;
 }
 
 .open-button,
@@ -297,7 +297,8 @@ h2 {
 .save-button,
 .copy-button,
 .delete-button {
-  min-width: 76px;
+  min-width: 0;
+  padding: 0 12px;
 }
 
 .remember-button {
@@ -337,7 +338,14 @@ h2 {
     padding: 28px 0;
   }
 
-  .input-row,
+  .input-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .input-row input {
+    grid-column: 1 / -1;
+  }
+
   .result-item {
     grid-template-columns: 1fr;
   }
@@ -355,12 +363,18 @@ h2 {
   .save-button,
   .delete-button {
     width: 100%;
+    padding: 0 8px;
   }
 
-  .page-nav,
-  .action-group {
+  .page-nav {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .action-group {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-width: 0;
+    width: 100%;
   }
 
   .last-updated {

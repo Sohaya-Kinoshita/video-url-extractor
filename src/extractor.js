@@ -110,6 +110,22 @@ export function validatePageUrl(value) {
   return url.toString();
 }
 
+export function validateDownloadUrl(value) {
+  const url = validatePageUrl(value);
+
+  if (!isVideoFile(url)) {
+    throw httpError("保存できる動画URLではありません。", 400);
+  }
+
+  return url;
+}
+
+export function getDownloadFileName(url) {
+  const parsed = new URL(url);
+  const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
+  return sanitizeFileName(lastSegment || "video");
+}
+
 export async function fetchHtml(url) {
   const response = await fetch(url, {
     headers: {
@@ -409,6 +425,11 @@ function shouldSkipLinkedPage(url) {
 
 function kindForUrl(url) {
   return new URL(url).pathname.toLowerCase().endsWith(".m3u8") ? "hls" : "file";
+}
+
+function sanitizeFileName(value) {
+  const cleaned = String(value || "video").replace(/[\\/:*?"<>|]/g, "_");
+  return cleaned || "video";
 }
 
 export function jsonResponse(payload, status = 200) {

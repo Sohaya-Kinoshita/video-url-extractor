@@ -9,6 +9,7 @@ const THUMBNAIL_KEYS = [
   "thumbnail",
   "thumbnailurl",
 ];
+const VILOLO_PAGE_HOST_RE = /^(video\.twimg-image\.com|cdn\d+\.mvfile\.com)$/;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
 const MEDIA_ATTRS = [
   "src",
@@ -130,7 +131,7 @@ export function extractVideoUrls(html, pageUrl) {
 export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   const url = new URL(pageUrl);
 
-  if (url.hostname !== "video.twimg-image.com") {
+  if (!VILOLO_PAGE_HOST_RE.test(url.hostname)) {
     return [];
   }
 
@@ -163,7 +164,7 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
     return [];
   }
 
-  return extractFromJson(payload, pageUrl, "video.twimg-image API");
+  return extractFromJson(payload, pageUrl, "Vilolo media API");
 }
 
 function extractFromTags(html, pageUrl) {

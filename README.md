@@ -26,10 +26,11 @@ https://<your-project>.pages.dev/sample.html
 https://<your-domain>.dev/sample.html
 ```
 
-次のような `video.twimg-image.com` の短縮ページにも対応しています。
+次のような短縮ページにも対応しています。
 
 ```text
 https://video.twimg-image.com/jVU9c2
+https://t.co/2YTXpnPofC
 ```
 
 ## ローカル起動

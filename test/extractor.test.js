@@ -83,7 +83,7 @@ describe("validatePageUrl", () => {
 });
 
 describe("extractKnownProviderUrls", () => {
-  it("extracts video.twimg-image media URLs from the provider API", async () => {
+  it("extracts Vilolo media URLs from the provider API", async () => {
     const results = await extractKnownProviderUrls(
       "https://video.twimg-image.com/jVU9c2",
       async (url) => {
@@ -112,9 +112,45 @@ describe("extractKnownProviderUrls", () => {
       {
         url: "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/playlist.m3u8",
         kind: "hls",
-        source: "video.twimg-image API",
+        source: "Vilolo media API",
         thumbnailUrl:
           "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/preview.webp",
+      },
+    ]);
+  });
+
+  it("supports mvfile pages reached from t.co redirects", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://cdn4.mvfile.com/WuSf1I",
+      async (url) => {
+        assert.equal(
+          url.toString(),
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=WuSf1I&domain=cdn4.mvfile.com",
+        );
+
+        return Response.json({
+          code: 0,
+          data: {
+            info: {
+              netDiskInfo: {
+                fileUrl:
+                  "https://vid.fun800.click/d804fec8-bce5-45c1-a604-58a58ff11bda/playlist.m3u8",
+                coverImage:
+                  "https://vid.fun800.click/net-disk-cover/20260907/2ea94d08-e265-4984-aa8c-644db339aad4.jpg",
+              },
+            },
+          },
+        });
+      },
+    );
+
+    assert.deepEqual(results, [
+      {
+        url: "https://vid.fun800.click/d804fec8-bce5-45c1-a604-58a58ff11bda/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo media API",
+        thumbnailUrl:
+          "https://vid.fun800.click/net-disk-cover/20260907/2ea94d08-e265-4984-aa8c-644db339aad4.jpg",
       },
     ]);
   });

@@ -297,10 +297,12 @@ describe("extractKnownProviderUrls", () => {
   });
 
   it("extracts related videos from the lower video list", async () => {
+    const requestedUrls = [];
     const results = await extractKnownProviderUrls(
       "https://cdn4.mvfile.com/WuSf1I",
       async (url) => {
         const requestUrl = url.toString();
+        requestedUrls.push(requestUrl);
         if (requestUrl.includes("/flow/land-page/getInfo")) {
           return Response.json({
             code: 0,
@@ -320,25 +322,32 @@ describe("extractKnownProviderUrls", () => {
           });
         }
 
-        assert.equal(
-          requestUrl,
-          "https://rwzugqnp.fun800.click/app-api/flow/land-page/list_by_links_page?externalLinks=1zAbXY&domain=cdn4.mvfile.com&pageNo=1&pageSize=20&sortOrder=3",
-        );
+        const request = new URL(requestUrl);
+        const pageNo = request.searchParams.get("pageNo");
+        const videoId = pageNo === "1" ? "related-page-1" : "related-page-2";
+        const landingPage = pageNo === "1" ? "A1VIjM" : "B2VIjM";
 
         return Response.json({
           code: 0,
           data: {
             list: [
               {
-                landingPage: "A1VIjM",
-                coverImage: "https://vid.fun800.click/related/thumbnail.jpg",
-                m3u8Url: "https://vid.fun800.click/related/playlist.m3u8",
+                landingPage,
+                coverImage: `https://vid.fun800.click/${videoId}/thumbnail.jpg`,
+                m3u8Url: `https://vid.fun800.click/${videoId}/playlist.m3u8`,
               },
             ],
+            total: 21,
           },
         });
       },
     );
+
+    assert.deepEqual(requestedUrls, [
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=WuSf1I&domain=cdn4.mvfile.com",
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/list_by_links_page?externalLinks=1zAbXY&domain=cdn4.mvfile.com&pageNo=1&pageSize=20&sortOrder=3",
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/list_by_links_page?externalLinks=1zAbXY&domain=cdn4.mvfile.com&pageNo=2&pageSize=20&sortOrder=3",
+    ]);
 
     assert.deepEqual(results, [
       {
@@ -348,11 +357,18 @@ describe("extractKnownProviderUrls", () => {
         thumbnailUrl: "https://vid.fun800.click/current/thumbnail.jpg",
       },
       {
-        url: "https://vid.fun800.click/related/playlist.m3u8",
+        url: "https://vid.fun800.click/related-page-1/playlist.m3u8",
         kind: "hls",
         source: "Vilolo related API",
-        thumbnailUrl: "https://vid.fun800.click/related/thumbnail.jpg",
+        thumbnailUrl: "https://vid.fun800.click/related-page-1/thumbnail.jpg",
         sourcePage: "https://cdn4.mvfile.com/A1VIjM",
+      },
+      {
+        url: "https://vid.fun800.click/related-page-2/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo related API",
+        thumbnailUrl: "https://vid.fun800.click/related-page-2/thumbnail.jpg",
+        sourcePage: "https://cdn4.mvfile.com/B2VIjM",
       },
     ]);
   });

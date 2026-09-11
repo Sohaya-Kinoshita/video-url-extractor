@@ -42,7 +42,8 @@ const THUMBNAIL_KEYS = [
 const VILOLO_PAGE_HOST_RE =
   /^(video\.twimg-image\.com|video\.twimgx\.com|cdn\d+\.(mvfile\.com|twimg-media\.com|image-share\.cc))$/;
 const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
-const RELATED_VIDEO_LIMIT = 20;
+const RELATED_VIDEO_PAGE_SIZE = 20;
+const RELATED_VIDEO_MAX_PAGES = 5;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
 const MEDIA_ATTRS = [
   "src",
@@ -278,23 +279,37 @@ async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
 
   const sortOrder =
     getNestedValue(payload, ["data", "info", "extraInfo", "sortOrder"]) || "3";
-  const relatedPayload = await fetchViloloJson(
-    "/flow/land-page/list_by_links_page",
-    {
-      externalLinks,
-      domain,
-      pageNo: "1",
-      pageSize: String(RELATED_VIDEO_LIMIT),
-      sortOrder,
-    },
-    fetchImpl,
-  );
+  const relatedPayloads = [];
 
-  if (!relatedPayload) {
-    return [];
+  for (let pageNo = 1; pageNo <= RELATED_VIDEO_MAX_PAGES; pageNo += 1) {
+    const relatedPayload = await fetchViloloJson(
+      "/flow/land-page/list_by_links_page",
+      {
+        externalLinks,
+        domain,
+        pageNo: String(pageNo),
+        pageSize: String(RELATED_VIDEO_PAGE_SIZE),
+        sortOrder,
+      },
+      fetchImpl,
+    );
+
+    const items = Array.isArray(relatedPayload?.data?.list)
+      ? relatedPayload.data.list
+      : [];
+    if (!items.length) {
+      break;
+    }
+
+    relatedPayloads.push(relatedPayload);
+
+    const total = Number(relatedPayload?.data?.total || 0);
+    if (total > 0 && pageNo * RELATED_VIDEO_PAGE_SIZE >= total) {
+      break;
+    }
   }
 
-  return extractFromJson(relatedPayload, pageUrl, "Vilolo related API")
+  return extractFromJson(relatedPayloads, pageUrl, "Vilolo related API")
     .map((result) => ({
       ...result,
       sourcePage: buildViloloLandingPageUrl(domain, result.landingPage) || pageUrl,

@@ -133,7 +133,7 @@ export function isHlsUrl(url) {
 export function getDownloadFileName(url) {
   const parsed = new URL(url);
   const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
-  return sanitizeFileName(lastSegment || "video");
+  return sanitizeFileName(safeDecodeURIComponent(lastSegment || "video"));
 }
 
 export function getTransportStreamFileName(url) {
@@ -631,6 +631,14 @@ function kindForUrl(url) {
 function sanitizeFileName(value) {
   const cleaned = String(value || "video").replace(/[\\/:*?"<>|]/g, "_");
   return cleaned || "video";
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
 }
 
 export function jsonResponse(payload, status = 200) {

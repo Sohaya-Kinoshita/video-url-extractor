@@ -110,6 +110,15 @@ describe("getDownloadFileName", () => {
       "bad_name.mp4",
     );
   });
+
+  it("decodes percent-encoded file names", () => {
+    assert.equal(
+      getDownloadFileName(
+        "https://cdn1.twimg-media.com/%E5%90%8C%E3%81%98JK%20%E9%81%95%E3%81%86%E3%82%B7%E3%83%BC%E3%83%B3%E3%81%A7%E8%87%AA%E6%92%AE%E3%82%8A%20(13).mov",
+      ),
+      "同じJK 違うシーンで自撮り (13).mov",
+    );
+  });
 });
 
 describe("getTransportStreamFileName", () => {

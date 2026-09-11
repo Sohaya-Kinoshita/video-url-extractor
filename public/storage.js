@@ -60,9 +60,17 @@
     try {
       const parsed = new URL(url);
       const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
-      return lastSegment || "video";
+      return safeDecodeURIComponent(lastSegment || "video");
     } catch {
       return "video";
+    }
+  }
+
+  function safeDecodeURIComponent(value) {
+    try {
+      return decodeURIComponent(String(value || ""));
+    } catch {
+      return String(value || "");
     }
   }
 

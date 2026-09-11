@@ -36,7 +36,8 @@ function renderSavedVideos() {
     const content = document.createElement("div");
     const urlText = document.createElement("span");
     urlText.className = "url-text";
-    urlText.textContent = item.url;
+    urlText.textContent = formatUrlForDisplay(item.url);
+    urlText.title = item.url;
 
     const meta = document.createElement("div");
     meta.className = "meta";
@@ -108,4 +109,38 @@ function formatSavedAt(value) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatUrlForDisplay(url) {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname
+      .split("/")
+      .map((segment) => safeDecodeURIComponent(segment))
+      .join("/");
+    const search = parsed.search
+      ? parsed.search
+          .slice(1)
+          .split("&")
+          .map((pair) =>
+            pair
+              .split("=")
+              .map((part) => safeDecodeURIComponent(part))
+              .join("="),
+          )
+          .join("&")
+      : "";
+
+    return `${parsed.origin}${path}${search ? `?${search}` : ""}${parsed.hash}`;
+  } catch {
+    return safeDecodeURIComponent(url);
+  }
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
 }

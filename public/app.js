@@ -97,7 +97,8 @@ function renderResults(results) {
     const content = document.createElement("div");
     const urlText = document.createElement("span");
     urlText.className = "url-text";
-    urlText.textContent = item.url;
+    urlText.textContent = formatUrlForDisplay(item.url);
+    urlText.title = item.url;
 
     const meta = document.createElement("div");
     meta.className = "meta";
@@ -195,5 +196,39 @@ function restoreTemporaryExtraction() {
 
 function buildExtractedMessage(pageUrl, scannedPageCount) {
   const pageText = scannedPageCount > 1 ? `${scannedPageCount}ページ` : "1ページ";
-  return `${pageUrl} を解析しました。探索: ${pageText}`;
+  return `${formatUrlForDisplay(pageUrl)} を解析しました。探索: ${pageText}`;
+}
+
+function formatUrlForDisplay(url) {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname
+      .split("/")
+      .map((segment) => safeDecodeURIComponent(segment))
+      .join("/");
+    const search = parsed.search
+      ? parsed.search
+          .slice(1)
+          .split("&")
+          .map((pair) =>
+            pair
+              .split("=")
+              .map((part) => safeDecodeURIComponent(part))
+              .join("="),
+          )
+          .join("&")
+      : "";
+
+    return `${parsed.origin}${path}${search ? `?${search}` : ""}${parsed.hash}`;
+  } catch {
+    return safeDecodeURIComponent(url);
+  }
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
 }

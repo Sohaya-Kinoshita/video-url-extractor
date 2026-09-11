@@ -296,6 +296,68 @@ describe("extractKnownProviderUrls", () => {
     }
   });
 
+  it("tries the provider API for unknown hosts with a similar short-link structure", async () => {
+    const requestedUrls = [];
+    const results = await extractKnownProviderUrls(
+      "https://cdn9.example-mirror.net/XyZ_123",
+      async (url) => {
+        requestedUrls.push(url.toString());
+        return Response.json({
+          code: 0,
+          data: {
+            info: {
+              netDiskInfo: {
+                fileUrl: "https://vid.fun800.click/mirror/playlist.m3u8",
+                previewUrl: "https://vid.fun800.click/mirror/preview.webp",
+              },
+            },
+          },
+        });
+      },
+    );
+
+    assert.deepEqual(requestedUrls, [
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=XyZ_123&domain=cdn9.example-mirror.net",
+    ]);
+
+    assert.deepEqual(results, [
+      {
+        url: "https://vid.fun800.click/mirror/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo media API",
+        thumbnailUrl: "https://vid.fun800.click/mirror/preview.webp",
+      },
+    ]);
+  });
+
+  it("does not call the provider API for ordinary multi-segment pages", async () => {
+    const requestedUrls = [];
+    const results = await extractKnownProviderUrls(
+      "https://example.com/watch/video-123",
+      async (url) => {
+        requestedUrls.push(url.toString());
+        return Response.json({ code: 0 });
+      },
+    );
+
+    assert.deepEqual(requestedUrls, []);
+    assert.deepEqual(results, []);
+  });
+
+  it("does not call the provider API for common short word pages on unknown hosts", async () => {
+    const requestedUrls = [];
+    const results = await extractKnownProviderUrls(
+      "https://example.com/about",
+      async (url) => {
+        requestedUrls.push(url.toString());
+        return Response.json({ code: 0 });
+      },
+    );
+
+    assert.deepEqual(requestedUrls, []);
+    assert.deepEqual(results, []);
+  });
+
   it("extracts related videos from the lower video list", async () => {
     const requestedUrls = [];
     const results = await extractKnownProviderUrls(

@@ -41,6 +41,8 @@ const THUMBNAIL_KEYS = [
 ];
 const VILOLO_PAGE_HOST_RE =
   /^(video\.twimg-image\.com|video\.twimgx\.com|cdn\d+\.(mvfile\.com|twimg-media\.com|image-share\.cc))$/;
+const VILOLO_SHORT_LINK_RE = /^[A-Za-z0-9_-]{4,64}$/;
+const VILOLO_GENERIC_SHORT_LINK_RE = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]{4,64}$/;
 const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
 const RELATED_VIDEO_PAGE_SIZE = 20;
 const RELATED_VIDEO_MAX_PAGES = 5;
@@ -232,12 +234,7 @@ export function extractVideoUrls(html, pageUrl) {
 
 export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   const url = new URL(pageUrl);
-
-  if (!VILOLO_PAGE_HOST_RE.test(url.hostname)) {
-    return [];
-  }
-
-  const shortLink = url.pathname.split("/").filter(Boolean)[0];
+  const shortLink = getViloloLikeShortLink(url);
   if (!shortLink) {
     return [];
   }
@@ -264,6 +261,42 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   );
 
   return dedupeCandidates([...currentResults, ...relatedResults]);
+}
+
+function getViloloLikeShortLink(url) {
+  const pathSegments = url.pathname.split("/").filter(Boolean);
+  if (pathSegments.length !== 1 || url.search || url.hash) {
+    return "";
+  }
+
+  const shortLink = pathSegments[0];
+  if (!VILOLO_SHORT_LINK_RE.test(shortLink)) {
+    return "";
+  }
+
+  if (VILOLO_PAGE_HOST_RE.test(url.hostname)) {
+    return shortLink;
+  }
+
+  return VILOLO_GENERIC_SHORT_LINK_RE.test(shortLink) &&
+    looksLikeShortShareHost(url.hostname)
+    ? shortLink
+    : "";
+}
+
+function looksLikeShortShareHost(hostname) {
+  if (!hostname.includes(".")) {
+    return false;
+  }
+
+  const labels = hostname.toLowerCase().split(".");
+  if (labels.some((label) => ["localhost", "local"].includes(label))) {
+    return false;
+  }
+
+  // Vilolo-like mirrors use compact one-path IDs on ordinary public hosts.
+  // The provider API validates the domain/link pair; a miss simply returns no data.
+  return labels.length >= 2 && labels.every((label) => /^[a-z0-9-]{1,63}$/.test(label));
 }
 
 async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {

@@ -47,7 +47,7 @@ https://<your-project>.pages.dev/saved.html
 
 「リンク先ページも探索」をオンにすると、入力ページ内のリンク先を最大8ページまで1階層だけ追加解析します。
 
-対応済みのVilolo系ページでは、動画下部に表示される関連動画リストもスクロール相当で最大100件まで検出します。
+対応済みのVilolo系ページ、および同じ短い共有ID形式の互換ページでは、動画下部に表示される関連動画リストもスクロール相当で最大100件まで検出します。既知ドメイン以外でも、`https://example.com/AbC123` のような1階層の短いIDページは互換APIを試し、API側で一致した場合だけ結果に含めます。
 
 対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`
 

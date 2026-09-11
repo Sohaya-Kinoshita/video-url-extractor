@@ -44,6 +44,14 @@ const VILOLO_PAGE_HOST_RE =
 const VILOLO_SHORT_LINK_RE = /^[A-Za-z0-9_-]{4,64}$/;
 const VILOLO_GENERIC_SHORT_LINK_RE = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]{4,64}$/;
 const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
+const GOFILE_PAGE_HOST_RE = /^(www\.)?gofile\.io$/;
+const GOFILE_CONTENT_ID_RE = /^[A-Za-z0-9_-]{4,128}$/;
+const GOFILE_API_BASE = "https://api.gofile.io";
+const GOFILE_LANGUAGE = "en-US";
+const GOFILE_WEBSITE_TOKEN_SALT = "5d4f7g8sd45fsd";
+const NON_PLAYABLE_VIDEO_PAGE_HOST_RE = /^(www\.)?gofile\.rocks$/;
+const PROVIDER_USER_AGENT =
+  "Mozilla/5.0 (compatible; VideoURLExtractor/1.0; +https://pages.dev)";
 const RELATED_VIDEO_PAGE_SIZE = 20;
 const RELATED_VIDEO_MAX_PAGES = 5;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
@@ -186,8 +194,7 @@ export function parseHlsPlaylist(text, playlistUrl) {
 export async function fetchHtml(url) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent":
-        "Mozilla/5.0 (compatible; VideoURLExtractor/1.0; +https://pages.dev)",
+      "User-Agent": PROVIDER_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
     },
     redirect: "follow",
@@ -234,6 +241,11 @@ export function extractVideoUrls(html, pageUrl) {
 
 export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   const url = new URL(pageUrl);
+  const gofileResults = await extractGofileUrls(url, pageUrl, fetchImpl);
+  if (gofileResults.length) {
+    return gofileResults;
+  }
+
   const shortLink = getViloloLikeShortLink(url);
   if (!shortLink) {
     return [];
@@ -261,6 +273,164 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
   );
 
   return dedupeCandidates([...currentResults, ...relatedResults]);
+}
+
+async function extractGofileUrls(url, pageUrl, fetchImpl) {
+  const contentId = getGofileContentId(url);
+  if (!contentId) {
+    return [];
+  }
+
+  const accountPayload = await fetchGofileJson("/accounts", {}, fetchImpl, {
+    method: "POST",
+  });
+  const token = accountPayload?.data?.token;
+  if (!token) {
+    return [];
+  }
+
+  const websiteToken = await generateGofileWebsiteToken(token);
+  const payload = await fetchGofileJson(
+    `/contents/${encodeURIComponent(contentId)}`,
+    {
+      contentFilter: "",
+      page: "1",
+      pageSize: "1000",
+      sortField: "name",
+      sortDirection: "1",
+    },
+    fetchImpl,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Website-Token": websiteToken,
+        "X-BL": GOFILE_LANGUAGE,
+      },
+    },
+  );
+
+  return dedupeCandidates(extractGofileVideoCandidates(payload, pageUrl));
+}
+
+function getGofileContentId(url) {
+  if (!GOFILE_PAGE_HOST_RE.test(url.hostname)) {
+    return "";
+  }
+
+  const pathSegments = url.pathname.split("/").filter(Boolean);
+  if (pathSegments[0] !== "d" || pathSegments.length !== 2) {
+    return "";
+  }
+
+  return GOFILE_CONTENT_ID_RE.test(pathSegments[1]) ? pathSegments[1] : "";
+}
+
+async function fetchGofileJson(path, params, fetchImpl, options = {}) {
+  const apiUrl = new URL(`${GOFILE_API_BASE}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    apiUrl.searchParams.set(key, value);
+  });
+
+  const response = await fetchImpl(apiUrl, {
+    method: options.method || "GET",
+    headers: {
+      Accept: "application/json",
+      Origin: "https://gofile.io",
+      Referer: "https://gofile.io/",
+      "User-Agent": PROVIDER_USER_AGENT,
+      ...(options.headers || {}),
+    },
+    redirect: "follow",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  try {
+    const payload = await response.json();
+    return payload?.status === "ok" ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+async function generateGofileWebsiteToken(token) {
+  const period = Math.floor(Date.now() / 1000 / 14400);
+  const raw = `${PROVIDER_USER_AGENT}::${GOFILE_LANGUAGE}::${token}::${period}::${GOFILE_WEBSITE_TOKEN_SALT}`;
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+  return [...new Uint8Array(hash)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function extractGofileVideoCandidates(payload, pageUrl) {
+  const candidates = [];
+  visitGofileItem(payload?.data);
+  return candidates;
+
+  function visitGofileItem(item) {
+    if (Array.isArray(item)) {
+      item.forEach(visitGofileItem);
+      return;
+    }
+
+    if (!item || typeof item !== "object") {
+      return;
+    }
+
+    const children = item.children || item.childs;
+    if (children && typeof children === "object") {
+      Object.values(children).forEach(visitGofileItem);
+    }
+
+    if (item.type !== "file") {
+      return;
+    }
+
+    const name = typeof item.name === "string" ? item.name : "";
+    const mimeType = String(item.mimeType || item.mimetype || "").toLowerCase();
+    const url = getGofileItemUrl(item, pageUrl);
+    if (!url || (!isVideoLikeGofileItem(url, name, mimeType) && !isVideoFile(url))) {
+      return;
+    }
+
+    candidates.push({
+      url,
+      kind: kindForUrl(url),
+      source: "Gofile API",
+      ...(findThumbnailUrl(item, pageUrl) ? { thumbnailUrl: findThumbnailUrl(item, pageUrl) } : {}),
+    });
+  }
+}
+
+function getGofileItemUrl(item, pageUrl) {
+  for (const key of ["directLink", "directlink", "downloadUrl", "downloadURL", "link", "url"]) {
+    if (typeof item[key] !== "string") {
+      continue;
+    }
+
+    const normalized = normalizeUrl(item[key], pageUrl);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
+function isVideoLikeGofileItem(url, name, mimeType) {
+  if (mimeType.startsWith("video/") || mimeType.includes("mpegurl")) {
+    return true;
+  }
+
+  if (isVideoFile(url)) {
+    return true;
+  }
+
+  return VIDEO_EXTENSIONS.some((extension) =>
+    name.toLowerCase().endsWith(`.${extension}`),
+  );
 }
 
 function getViloloLikeShortLink(url) {
@@ -416,6 +586,10 @@ function dedupeCandidates(candidates) {
   const deduped = new Map();
 
   for (const candidate of candidates) {
+    if (shouldIgnoreExtractedVideoUrl(candidate.url)) {
+      continue;
+    }
+
     if (!deduped.has(candidate.url)) {
       deduped.set(candidate.url, candidate);
       continue;
@@ -430,7 +604,36 @@ function dedupeCandidates(candidates) {
     });
   }
 
-  return [...deduped.values()];
+  return removeLowerPriorityThumbnailDuplicates([...deduped.values()]);
+}
+
+function removeLowerPriorityThumbnailDuplicates(candidates) {
+  const candidatesByThumbnail = new Map();
+  candidates.forEach((candidate) => {
+    if (!candidate.thumbnailUrl) {
+      return;
+    }
+
+    const key = candidate.thumbnailUrl;
+    const group = candidatesByThumbnail.get(key) || [];
+    group.push(candidate);
+    candidatesByThumbnail.set(key, group);
+  });
+
+  const urlsToDrop = new Set();
+  for (const group of candidatesByThumbnail.values()) {
+    const hasPlayableHls = group.some((candidate) => candidate.kind === "hls");
+    if (!hasPlayableHls) {
+      continue;
+    }
+
+    group
+      .filter((candidate) => candidate.kind === "file")
+      .filter((candidate) => isLikelyPageDisguisedAsVideo(candidate.url))
+      .forEach((candidate) => urlsToDrop.add(candidate.url));
+  }
+
+  return candidates.filter((candidate) => !urlsToDrop.has(candidate.url));
 }
 
 function extractFromTags(html, pageUrl) {
@@ -454,6 +657,7 @@ function extractFromTags(html, pageUrl) {
 
       const normalized = normalizeUrl(value, pageUrl);
       if (!normalized) continue;
+      if (shouldIgnoreExtractedVideoUrl(normalized)) continue;
 
       if (
         isVideoFile(normalized) ||
@@ -482,7 +686,12 @@ function extractFromJson(value, pageUrl, source) {
   function visitJson(item, inheritedThumbnailUrl, inheritedLandingPage) {
     if (typeof item === "string") {
       const normalized = normalizeUrl(item, pageUrl);
-      if (normalized && isVideoFile(normalized) && !seen.has(normalized)) {
+      if (
+        normalized &&
+        isVideoFile(normalized) &&
+        !shouldIgnoreExtractedVideoUrl(normalized) &&
+        !seen.has(normalized)
+      ) {
         seen.add(normalized);
         candidates.push({
           url: normalized,
@@ -542,7 +751,13 @@ function extractFromText(html, pageUrl) {
   for (const regex of [ABSOLUTE_VIDEO_RE, RELATIVE_VIDEO_RE]) {
     for (const match of searchable.matchAll(regex)) {
       const normalized = normalizeUrl(match[1], pageUrl);
-      if (!normalized || !isVideoFile(normalized)) continue;
+      if (
+        !normalized ||
+        !isVideoFile(normalized) ||
+        shouldIgnoreExtractedVideoUrl(normalized)
+      ) {
+        continue;
+      }
 
       candidates.push({
         url: normalized,
@@ -622,6 +837,18 @@ function shouldSkipLinkedPage(url) {
 
   const extension = parsed.pathname.split(".").pop()?.toLowerCase() || "";
   return NON_PAGE_EXTENSIONS.includes(extension);
+}
+
+function shouldIgnoreExtractedVideoUrl(url) {
+  return isLikelyPageDisguisedAsVideo(url);
+}
+
+function isLikelyPageDisguisedAsVideo(url) {
+  try {
+    return NON_PLAYABLE_VIDEO_PAGE_HOST_RE.test(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 function kindForUrl(url) {

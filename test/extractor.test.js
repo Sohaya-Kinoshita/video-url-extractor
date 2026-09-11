@@ -70,6 +70,21 @@ describe("extractVideoUrls", () => {
       },
     ]);
   });
+
+  it("ignores page URLs disguised as video files", () => {
+    const html = `
+      <a href="https://gofile.rocks/%E8%8B%A5%E3%81%84%E3%82%AB%E3%83%83%E3%83%97%E3%83%AB%E3%81%AE%E6%97%A5%E5%B8%B8%20(18).mp4">fake file</a>
+      <a href="https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/playlist.m3u8">hls</a>
+    `;
+
+    assert.deepEqual(extractVideoUrls(html, "https://example.com/page"), [
+      {
+        url: "https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/playlist.m3u8",
+        kind: "hls",
+        source: "<a> href",
+      },
+    ]);
+  });
 });
 
 describe("normalizeUrl", () => {
@@ -181,6 +196,100 @@ describe("extractLinkedPageUrls", () => {
 });
 
 describe("extractKnownProviderUrls", () => {
+  it("extracts public Gofile video links from folder contents", async () => {
+    const requests = [];
+    const results = await extractKnownProviderUrls(
+      "https://gofile.io/d/65pGBWhc",
+      async (url, options = {}) => {
+        requests.push({
+          url: url.toString(),
+          method: options.method || "GET",
+          headers: options.headers || {},
+        });
+
+        if (url.pathname === "/accounts") {
+          return Response.json({
+            status: "ok",
+            data: {
+              token: "guest-token",
+            },
+          });
+        }
+
+        return Response.json({
+          status: "ok",
+          data: {
+            type: "folder",
+            children: {
+              video: {
+                type: "file",
+                name: "movie without extension",
+                mimeType: "video/mp4",
+                link: "https://store1.gofile.io/download/direct-video",
+                thumbnail: "https://store1.gofile.io/thumbs/direct-video.webp",
+              },
+              document: {
+                type: "file",
+                name: "notes.pdf",
+                mimeType: "application/pdf",
+                link: "https://store1.gofile.io/download/notes.pdf",
+              },
+              nestedFolder: {
+                type: "folder",
+                childs: {
+                  nestedVideo: {
+                    type: "file",
+                    name: "nested.mov",
+                    mimeType: "application/octet-stream",
+                    link: "https://store1.gofile.io/download/nested-file",
+                  },
+                },
+              },
+            },
+          },
+        });
+      },
+    );
+
+    assert.equal(requests[0].url, "https://api.gofile.io/accounts");
+    assert.equal(requests[0].method, "POST");
+    assert.equal(
+      requests[1].url,
+      "https://api.gofile.io/contents/65pGBWhc?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
+    );
+    assert.equal(requests[1].headers.Authorization, "Bearer guest-token");
+    assert.match(requests[1].headers["X-Website-Token"], /^[a-f0-9]{64}$/);
+    assert.equal(requests[1].headers["X-BL"], "en-US");
+
+    assert.deepEqual(results, [
+      {
+        url: "https://store1.gofile.io/download/direct-video",
+        kind: "file",
+        source: "Gofile API",
+        thumbnailUrl: "https://store1.gofile.io/thumbs/direct-video.webp",
+      },
+      {
+        url: "https://store1.gofile.io/download/nested-file",
+        kind: "file",
+        source: "Gofile API",
+      },
+    ]);
+  });
+
+  it("ignores non-Gofile pages when checking Gofile support", async () => {
+    const requestedUrls = [];
+    const results = await extractKnownProviderUrls(
+      "https://example.com/d/65pGBWhc",
+      async (url) => {
+        requestedUrls.push(url.toString());
+        return Response.json({ status: "ok" });
+      },
+    );
+
+    assert.deepEqual(requestedUrls, []);
+    assert.deepEqual(results, []);
+  });
+
   it("extracts Vilolo media URLs from the provider API", async () => {
     const requestedUrls = [];
     const results = await extractKnownProviderUrls(
@@ -215,6 +324,38 @@ describe("extractKnownProviderUrls", () => {
         source: "Vilolo media API",
         thumbnailUrl:
           "https://vid.fun800.click/43098c0d-6208-4c1e-bea2-261779f50104/preview.webp",
+      },
+    ]);
+  });
+
+  it("keeps the playable HLS when a provider payload also contains a fake same-thumbnail file URL", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://video.twimg-image.com/jVU9c2",
+      async () =>
+        Response.json({
+          code: 0,
+          data: {
+            info: {
+              netDiskInfo: {
+                fileUrl:
+                  "https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/playlist.m3u8",
+                originalUrl:
+                  "https://gofile.rocks/%E8%8B%A5%E3%81%84%E3%82%AB%E3%83%83%E3%83%97%E3%83%AB%E3%81%AE%E6%97%A5%E5%B8%B8%20(18).mp4",
+                coverImage:
+                  "https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/preview.webp",
+              },
+            },
+          },
+        }),
+    );
+
+    assert.deepEqual(results, [
+      {
+        url: "https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/playlist.m3u8",
+        kind: "hls",
+        source: "Vilolo media API",
+        thumbnailUrl:
+          "https://vid.fun800.click/9c078a92-e070-44c8-8656-a649a433450a/preview.webp",
       },
     ]);
   });

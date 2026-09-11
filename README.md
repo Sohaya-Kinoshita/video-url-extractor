@@ -31,6 +31,7 @@ https://<your-domain>.dev/sample.html
 ```text
 https://video.twimg-image.com/jVU9c2
 https://t.co/2YTXpnPofC
+https://gofile.io/d/65pGBWhc
 ```
 
 ## 保存リスト
@@ -49,7 +50,9 @@ https://<your-project>.pages.dev/saved.html
 
 対応済みのVilolo系ページ、および同じ短い共有ID形式の互換ページでは、動画下部に表示される関連動画リストもスクロール相当で最大100件まで検出します。既知ドメイン以外でも、`https://example.com/AbC123` のような1階層の短いIDページは互換APIを試し、API側で一致した場合だけ結果に含めます。
 
-対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`
+Gofileの公開共有フォルダ（`https://gofile.io/d/<id>`）では、フォルダ内の動画ファイルをAPI経由で検出します。パスワード付き、期限切れ、非公開の共有フォルダは検出できません。
+
+対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`、`gofile.io`
 
 ## ローカル起動
 

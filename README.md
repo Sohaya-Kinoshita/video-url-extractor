@@ -49,6 +49,8 @@ https://<your-project>.pages.dev/saved.html
 
 対応済みのVilolo系ページでは、動画下部に表示される関連動画リストも最大20件まで検出します。
 
+対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`
+
 ## ローカル起動
 
 Node.jsが入っている環境で実行します。

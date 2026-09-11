@@ -248,6 +248,54 @@ describe("extractKnownProviderUrls", () => {
     ]);
   });
 
+  it("supports similar Vilolo hostnames", async () => {
+    const cases = [
+      {
+        pageUrl: "https://video.twimgx.com/5eiIv3",
+        apiUrl:
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=5eiIv3&domain=video.twimgx.com",
+      },
+      {
+        pageUrl: "https://cdn1.twimg-media.com/a1jzNI",
+        apiUrl:
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=a1jzNI&domain=cdn1.twimg-media.com",
+      },
+      {
+        pageUrl: "https://cdn2.image-share.cc/9aZhBN",
+        apiUrl:
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=9aZhBN&domain=cdn2.image-share.cc",
+      },
+    ];
+
+    for (const item of cases) {
+      const requests = [];
+      const results = await extractKnownProviderUrls(item.pageUrl, async (url) => {
+        requests.push(url.toString());
+        return Response.json({
+          code: 0,
+          data: {
+            info: {
+              netDiskInfo: {
+                fileUrl: "https://vid.fun800.click/example/playlist.m3u8",
+                coverImage: "https://vid.fun800.click/example/thumbnail.jpg",
+              },
+            },
+          },
+        });
+      });
+
+      assert.deepEqual(requests, [item.apiUrl]);
+      assert.deepEqual(results, [
+        {
+          url: "https://vid.fun800.click/example/playlist.m3u8",
+          kind: "hls",
+          source: "Vilolo media API",
+          thumbnailUrl: "https://vid.fun800.click/example/thumbnail.jpg",
+        },
+      ]);
+    }
+  });
+
   it("extracts related videos from the lower video list", async () => {
     const results = await extractKnownProviderUrls(
       "https://cdn4.mvfile.com/WuSf1I",

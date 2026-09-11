@@ -39,7 +39,8 @@ const THUMBNAIL_KEYS = [
   "thumbnail",
   "thumbnailurl",
 ];
-const VILOLO_PAGE_HOST_RE = /^(video\.twimg-image\.com|cdn\d+\.mvfile\.com)$/;
+const VILOLO_PAGE_HOST_RE =
+  /^(video\.twimg-image\.com|video\.twimgx\.com|cdn\d+\.(mvfile\.com|twimg-media\.com|image-share\.cc))$/;
 const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
 const RELATED_VIDEO_LIMIT = 20;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;

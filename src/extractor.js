@@ -40,7 +40,7 @@ const THUMBNAIL_KEYS = [
   "thumbnailurl",
 ];
 const VILOLO_PAGE_HOST_RE =
-  /^(video\.twimg-image\.com|video\.twimgx\.com|cdn\d+\.(mvfile\.com|twimg-media\.com|image-share\.cc))$/;
+  /^(video\.twimg-image\.com|video\.twimgx\.com|twimg\.com\.pl|cdn\d+\.(mvfile\.com|twimg-media\.com|image-share\.cc))$/;
 const VILOLO_SHORT_LINK_RE = /^[A-Za-z0-9_-]{4,64}$/;
 const VILOLO_GENERIC_SHORT_LINK_RE = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]{4,64}$/;
 const VILOLO_API_BASE = "https://rwzugqnp.fun800.click/app-api";
@@ -435,16 +435,26 @@ function isVideoLikeGofileItem(url, name, mimeType) {
 
 function getViloloLikeShortLink(url) {
   const pathSegments = url.pathname.split("/").filter(Boolean);
-  if (pathSegments.length !== 1 || url.search || url.hash) {
+  if (url.search || url.hash) {
     return "";
   }
 
-  const shortLink = pathSegments[0];
+  const isKnownViloloHost = VILOLO_PAGE_HOST_RE.test(url.hostname);
+  const usesDPath = pathSegments.length === 2 && pathSegments[0] === "d";
+  if (usesDPath && !isKnownViloloHost) {
+    return "";
+  }
+
+  const shortLink = pathSegments.length === 1 ? pathSegments[0] : usesDPath ? pathSegments[1] : "";
+  if (!shortLink) {
+    return "";
+  }
+
   if (!VILOLO_SHORT_LINK_RE.test(shortLink)) {
     return "";
   }
 
-  if (VILOLO_PAGE_HOST_RE.test(url.hostname)) {
+  if (isKnownViloloHost) {
     return shortLink;
   }
 
@@ -552,7 +562,17 @@ function buildViloloLandingPageUrl(domain, landingPage) {
     return "";
   }
 
+  if (usesViloloDPath(domain)) {
+    const path = String(landingPage).replace(/^\/+/, "");
+    const id = path.startsWith("d/") ? path.slice(2) : path;
+    return `https://${domain}/d/${encodeURIComponent(id)}`;
+  }
+
   return `https://${domain}/${encodeURIComponent(landingPage)}`;
+}
+
+function usesViloloDPath(domain) {
+  return domain === "twimg.com.pl";
 }
 
 export function extractLinkedPageUrls(html, pageUrl, limit = 8) {

@@ -415,6 +415,11 @@ describe("extractKnownProviderUrls", () => {
         apiUrl:
           "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=9aZhBN&domain=cdn2.image-share.cc",
       },
+      {
+        pageUrl: "https://twimg.com.pl/d/ZHrNY3",
+        apiUrl:
+          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=ZHrNY3&domain=twimg.com.pl",
+      },
     ];
 
     for (const item of cases) {
@@ -583,5 +588,53 @@ describe("extractKnownProviderUrls", () => {
         sourcePage: "https://cdn4.mvfile.com/B2VIjM",
       },
     ]);
+  });
+
+  it("uses /d/ source pages for twimg.com.pl related videos", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://twimg.com.pl/d/ZHrNY3",
+      async (url) => {
+        const requestUrl = url.toString();
+        if (requestUrl.includes("/flow/land-page/getInfo")) {
+          return Response.json({
+            code: 0,
+            data: {
+              info: {
+                netDiskInfo: {
+                  fileUrl: "https://vid.fun800.click/current/playlist.m3u8",
+                  coverImage: "https://vid.fun800.click/current/thumbnail.jpg",
+                },
+                extraInfo: {
+                  externalLinks: "channel123",
+                  sortOrder: "2",
+                },
+              },
+            },
+          });
+        }
+
+        return Response.json({
+          code: 0,
+          data: {
+            list: [
+              {
+                landingPage: "NextAb1",
+                coverImage: "https://vid.fun800.click/next/thumbnail.jpg",
+                m3u8Url: "https://vid.fun800.click/next/playlist.m3u8",
+              },
+            ],
+            total: 1,
+          },
+        });
+      },
+    );
+
+    assert.deepEqual(results[1], {
+      url: "https://vid.fun800.click/next/playlist.m3u8",
+      kind: "hls",
+      source: "Vilolo related API",
+      thumbnailUrl: "https://vid.fun800.click/next/thumbnail.jpg",
+      sourcePage: "https://twimg.com.pl/d/NextAb1",
+    });
   });
 });

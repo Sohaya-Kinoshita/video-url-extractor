@@ -31,6 +31,7 @@ https://<your-domain>.dev/sample.html
 ```text
 https://video.twimg-image.com/jVU9c2
 https://t.co/2YTXpnPofC
+https://twimg.com.pl/d/ZHrNY3
 https://gofile.io/d/65pGBWhc
 ```
 
@@ -52,7 +53,7 @@ https://<your-project>.pages.dev/saved.html
 
 Gofileの公開共有フォルダ（`https://gofile.io/d/<id>`）では、フォルダ内の動画ファイルをAPI経由で検出します。パスワード付き、期限切れ、非公開の共有フォルダは検出できません。
 
-対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`、`gofile.io`
+対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`twimg.com.pl`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`、`gofile.io`
 
 ## ローカル起動
 

@@ -418,7 +418,7 @@ describe("extractKnownProviderUrls", () => {
       {
         pageUrl: "https://twimg.com.pl/d/ZHrNY3",
         apiUrl:
-          "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=ZHrNY3&domain=twimg.com.pl",
+          "https://twimg.com.pl/api.php?endpoint=%2Fflow%2Fland-page%2FgetInfo&externalLinks=ZHrNY3&domain=twimg.com.pl",
       },
     ];
 
@@ -591,11 +591,13 @@ describe("extractKnownProviderUrls", () => {
   });
 
   it("uses /d/ source pages for twimg.com.pl related videos", async () => {
+    const requests = [];
     const results = await extractKnownProviderUrls(
       "https://twimg.com.pl/d/ZHrNY3",
       async (url) => {
         const requestUrl = url.toString();
-        if (requestUrl.includes("/flow/land-page/getInfo")) {
+        requests.push(requestUrl);
+        if (url.searchParams.get("endpoint") === "/flow/land-page/getInfo") {
           return Response.json({
             code: 0,
             data: {
@@ -628,6 +630,11 @@ describe("extractKnownProviderUrls", () => {
         });
       },
     );
+
+    assert.deepEqual(requests, [
+      "https://twimg.com.pl/api.php?endpoint=%2Fflow%2Fland-page%2FgetInfo&externalLinks=ZHrNY3&domain=twimg.com.pl",
+      "https://twimg.com.pl/api.php?endpoint=%2Fflow%2Fland-page%2Flist_by_links_page&externalLinks=channel123&domain=twimg.com.pl&pageNo=1&pageSize=20&sortOrder=2",
+    ]);
 
     assert.deepEqual(results[1], {
       url: "https://vid.fun800.click/next/playlist.m3u8",

@@ -531,7 +531,7 @@ async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
 }
 
 async function fetchViloloJson(path, params, fetchImpl) {
-  const apiUrl = new URL(`${VILOLO_API_BASE}${path}`);
+  const apiUrl = buildViloloApiUrl(path, params.domain);
   Object.entries(params).forEach(([key, value]) => {
     apiUrl.searchParams.set(key, value);
   });
@@ -553,6 +553,16 @@ async function fetchViloloJson(path, params, fetchImpl) {
   }
 }
 
+function buildViloloApiUrl(path, domain) {
+  if (usesViloloLocalApi(domain)) {
+    const apiUrl = new URL(`https://${domain}/api.php`);
+    apiUrl.searchParams.set("endpoint", path);
+    return apiUrl;
+  }
+
+  return new URL(`${VILOLO_API_BASE}${path}`);
+}
+
 function getNestedValue(value, path) {
   return path.reduce((current, key) => current?.[key], value) || "";
 }
@@ -572,6 +582,10 @@ function buildViloloLandingPageUrl(domain, landingPage) {
 }
 
 function usesViloloDPath(domain) {
+  return domain === "twimg.com.pl";
+}
+
+function usesViloloLocalApi(domain) {
   return domain === "twimg.com.pl";
 }
 

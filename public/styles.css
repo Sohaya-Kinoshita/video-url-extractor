@@ -225,8 +225,8 @@ h2 {
 
 .result-item {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   padding: 18px 22px;
@@ -250,12 +250,17 @@ h2 {
 }
 
 .thumbnail {
-  width: 120px;
-  aspect-ratio: 16 / 9;
+  width: 132px;
+  height: 74px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #edf1f5;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+}
+
+.thumbnail--portrait {
+  height: 176px;
 }
 
 .meta {
@@ -347,12 +352,24 @@ h2 {
   }
 
   .result-item {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(88px, 34vw) minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
   }
 
   .thumbnail {
     width: 100%;
-    max-width: 280px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .thumbnail--portrait {
+    aspect-ratio: 3 / 4;
+    max-height: 220px;
+  }
+
+  .result-item--without-thumbnail {
+    grid-template-columns: 1fr;
   }
 
   button,
@@ -372,6 +389,7 @@ h2 {
   }
 
   .action-group {
+    grid-column: 1 / -1;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     min-width: 0;
     width: 100%;

@@ -84,12 +84,7 @@ function renderResults(results) {
     row.className = "result-item";
 
     if (item.thumbnailUrl) {
-      const thumbnail = document.createElement("img");
-      thumbnail.className = "thumbnail";
-      thumbnail.src = item.thumbnailUrl;
-      thumbnail.alt = "";
-      thumbnail.loading = "lazy";
-      row.appendChild(thumbnail);
+      row.appendChild(createThumbnail(item.thumbnailUrl));
     } else {
       row.classList.add("result-item--without-thumbnail");
     }
@@ -150,6 +145,26 @@ function renderResults(results) {
     row.append(content, actions);
     resultsEl.appendChild(row);
   }
+}
+
+function createThumbnail(src) {
+  const thumbnail = document.createElement("img");
+  thumbnail.className = "thumbnail";
+  thumbnail.alt = "";
+  thumbnail.loading = "lazy";
+
+  const applyOrientation = () => {
+    thumbnail.classList.toggle(
+      "thumbnail--portrait",
+      thumbnail.naturalHeight > thumbnail.naturalWidth,
+    );
+  };
+
+  thumbnail.addEventListener("load", applyOrientation, { once: true });
+  thumbnail.src = src;
+  if (thumbnail.complete && thumbnail.naturalWidth) applyOrientation();
+
+  return thumbnail;
 }
 
 function createBadge(text) {

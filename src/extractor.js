@@ -717,8 +717,12 @@ function extractFromJson(value, pageUrl, source) {
   visitJson(value, "", "");
   return candidates;
 
-  function visitJson(item, inheritedThumbnailUrl, inheritedLandingPage) {
+  function visitJson(item, inheritedThumbnailUrl, inheritedLandingPage, key = "") {
     if (typeof item === "string") {
+      if (!isMediaUrlValue(item, key)) {
+        return;
+      }
+
       const normalized = normalizeUrl(item, pageUrl);
       if (
         normalized &&
@@ -742,7 +746,7 @@ function extractFromJson(value, pageUrl, source) {
 
     if (Array.isArray(item)) {
       item.forEach((child) =>
-        visitJson(child, inheritedThumbnailUrl, inheritedLandingPage),
+        visitJson(child, inheritedThumbnailUrl, inheritedLandingPage, key),
       );
       return;
     }
@@ -753,11 +757,24 @@ function extractFromJson(value, pageUrl, source) {
         typeof item.landingPage === "string"
           ? item.landingPage
           : inheritedLandingPage;
-      Object.values(item).forEach((child) =>
-        visitJson(child, thumbnailUrl, landingPage),
+      Object.entries(item).forEach(([childKey, child]) =>
+        visitJson(child, thumbnailUrl, landingPage, childKey),
       );
     }
   }
+}
+
+function isMediaUrlValue(value, key) {
+  // Provider metadata often contains names such as "movie.mp4". Resolving
+  // these against the share page invents a file URL that does not exist.
+  if (/^(?:name|title|description|(?:original)?file_?name|original_?name)$/i.test(key)) {
+    return false;
+  }
+
+  return (
+    /^(?:https?:\/\/|\/|\.\.?\/)/i.test(value.trim()) ||
+    /(?:url|uri|src)$|^(?:file|video|hls|m3u8|source)$/i.test(key)
+  );
 }
 
 function findThumbnailUrl(item, pageUrl) {

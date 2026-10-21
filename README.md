@@ -55,6 +55,8 @@ Gofileの公開共有フォルダ（`https://gofile.io/d/<id>`）では、フォ
 
 対応ドメイン例: `video.twimg-image.com`、`video.twimgx.com`、`twimg.com.pl`、`cdn*.mvfile.com`、`cdn*.twimg-media.com`、`cdn*.image-share.cc`、`gofile.io`
 
+配信元APIのファイル名やタイトル（例: `movie.mp4`）は動画URLとして扱いません。実際の配信用URLを抽出し、ファイル名から存在しない `.mp4` リンクが生成されることを防ぎます。
+
 ## ローカル起動
 
 Node.jsが入っている環境で実行します。

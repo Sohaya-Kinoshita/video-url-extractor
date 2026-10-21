@@ -196,6 +196,83 @@ describe("extractLinkedPageUrls", () => {
 });
 
 describe("extractKnownProviderUrls", () => {
+  it("excludes the reported tweetfile MP4 name while keeping its HLS URL", async () => {
+    const playlistUrl = "https://vid.vidly.me/fe939142-c76b-4c74-afff-0f9574dfffcd/playlist.m3u8";
+    const results = await extractKnownProviderUrls(
+      "https://tweetfile.com/16IOiO",
+      async () => Response.json({
+        code: 0,
+        data: {
+          info: {
+            netDiskInfo: {
+              name: "最新アプリ「Vinlyze」で無料の続きをチェック.mp4",
+              fileUrl: playlistUrl,
+              originUrl: playlistUrl,
+            },
+          },
+        },
+      }),
+    );
+
+    assert.deepEqual(results, [{
+      url: playlistUrl,
+      kind: "hls",
+      source: "Vilolo media API",
+    }]);
+  });
+
+  it("does not invent MP4 URLs from provider file names or titles", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://video.twimg-image.com/AbC123",
+      async () => Response.json({
+        code: 0,
+        data: {
+          info: {
+            netDiskInfo: {
+              name: "movie.mp4",
+              fileName: "movie.mp4",
+              originalFileName: "original.mp4",
+              title: "Another video.mp4",
+              description: "/description.mp4",
+              label: "label.mp4",
+              fileUrl: "https://media.example.com/movie/playlist.m3u8",
+              coverImage: "https://media.example.com/movie/cover.jpg",
+            },
+          },
+        },
+      }),
+    );
+
+    assert.deepEqual(results, [{
+      url: "https://media.example.com/movie/playlist.m3u8",
+      kind: "hls",
+      source: "Vilolo media API",
+      thumbnailUrl: "https://media.example.com/movie/cover.jpg",
+    }]);
+  });
+
+  it("keeps actual MP4 URLs including relative URL fields and URL arrays", async () => {
+    const results = await extractKnownProviderUrls(
+      "https://video.twimg-image.com/AbC123",
+      async () => Response.json({
+        code: 0,
+        data: {
+          fileUrl: "movie.mp4?token=abc&expires=123",
+          videos: ["https://media.example.com/direct.mp4", "/media/root.mp4"],
+          files: [{ src: "../media/relative.mp4" }],
+        },
+      }),
+    );
+
+    assert.deepEqual(results.map((item) => item.url), [
+      "https://video.twimg-image.com/movie.mp4?token=abc&expires=123",
+      "https://media.example.com/direct.mp4",
+      "https://video.twimg-image.com/media/root.mp4",
+      "https://video.twimg-image.com/media/relative.mp4",
+    ]);
+    assert.ok(results.every((item) => item.kind === "file"));
+  });
+
   it("extracts public Gofile video links from folder contents", async () => {
     const requests = [];
     const results = await extractKnownProviderUrls(
@@ -550,6 +627,8 @@ describe("extractKnownProviderUrls", () => {
             list: [
               {
                 landingPage,
+                fileName: `${videoId}.mp4`,
+                title: `${videoId}.mp4`,
                 coverImage: `https://vid.fun800.click/${videoId}/thumbnail.jpg`,
                 m3u8Url: `https://vid.fun800.click/${videoId}/playlist.m3u8`,
               },

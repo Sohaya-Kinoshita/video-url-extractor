@@ -4,6 +4,8 @@ import {
   isHlsUrl,
   parseHlsPlaylist,
   validateDownloadUrl,
+  validatePageUrl,
+  jsonResponse,
 } from "../../src/extractor.js";
 
 const MAX_HLS_SEGMENTS = 300;
@@ -11,7 +13,27 @@ const MAX_HLS_SEGMENTS = 300;
 export async function onRequestGet({ request }) {
   try {
     const requestUrl = new URL(request.url);
+    const mode = requestUrl.searchParams.get("mode");
+    if (mode === "segment") {
+      return await downloadSegment(requestUrl.searchParams.get("url"));
+    }
     const targetUrl = validateDownloadUrl(requestUrl.searchParams.get("url"));
+
+    if (mode === "manifest") {
+      if (!isHlsUrl(targetUrl)) {
+        return new Response("HLS動画のURLを指定してください。", { status: 400 });
+      }
+      const { segments, duration } = await getHlsPlaylist(targetUrl, true);
+      if (!segments.length || segments.length > MAX_HLS_SEGMENTS || duration <= 0) {
+        return new Response("この動画の長さはMP4変換に対応していません。", { status: 400 });
+      }
+      segments.forEach((url) => validateSegmentUrl(url));
+      return jsonResponse({
+        segments,
+        duration,
+        fileName: getDownloadFileName(targetUrl).replace(/\.m3u8$/i, ".mp4"),
+      });
+    }
 
     if (isHlsUrl(targetUrl)) {
       return await downloadHlsAsTransportStream(targetUrl);
@@ -49,7 +71,7 @@ export async function onRequestGet({ request }) {
 }
 
 async function downloadHlsAsTransportStream(targetUrl) {
-  const segmentUrls = await getHlsSegmentUrls(targetUrl);
+  const { segments: segmentUrls } = await getHlsPlaylist(targetUrl);
 
   if (!segmentUrls.length) {
     return new Response("保存できる動画セグメントが見つかりませんでした。", {
@@ -97,8 +119,8 @@ async function downloadHlsAsTransportStream(targetUrl) {
   });
 }
 
-async function getHlsSegmentUrls(targetUrl) {
-  const masterResponse = await fetch(targetUrl, {
+async function getHlsPlaylist(targetUrl, forMp4 = false) {
+  const masterResponse = await fetchPublicMedia(targetUrl, {
     headers: { Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*" },
   });
 
@@ -106,12 +128,13 @@ async function getHlsSegmentUrls(targetUrl) {
     throw new Error("HLSプレイリストの取得に失敗しました。");
   }
 
-  let playlistUrl = targetUrl;
-  let playlist = parseHlsPlaylist(await masterResponse.text(), playlistUrl);
+  let playlistUrl = masterResponse.url || targetUrl;
+  let text = await masterResponse.text();
+  let playlist = parseHlsPlaylist(text, playlistUrl);
 
   if (playlist.variants.length) {
     playlistUrl = playlist.variants[0].url;
-    const mediaResponse = await fetch(playlistUrl, {
+    const mediaResponse = await fetchPublicMedia(playlistUrl, {
       headers: { Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*" },
     });
 
@@ -119,8 +142,50 @@ async function getHlsSegmentUrls(targetUrl) {
       throw new Error("HLS動画情報の取得に失敗しました。");
     }
 
-    playlist = parseHlsPlaylist(await mediaResponse.text(), playlistUrl);
+    playlistUrl = mediaResponse.url || playlistUrl;
+    text = await mediaResponse.text();
+    playlist = parseHlsPlaylist(text, playlistUrl);
   }
 
-  return playlist.segments;
+  if (forMp4 && (!text.includes("#EXT-X-ENDLIST") || /#EXT-X-(?:DISCONTINUITY|BYTERANGE)(?::|\s|$)/m.test(text))) {
+    throw new Error("このHLS形式はMP4変換に対応していません。元のURLから開いてください。");
+  }
+
+  return playlist;
+}
+
+function validateSegmentUrl(value) {
+  const url = validatePageUrl(value);
+  if (!new URL(url).pathname.toLowerCase().endsWith(".ts")) {
+    throw new Error("この動画形式はMP4変換に対応していません。");
+  }
+  return url;
+}
+
+async function downloadSegment(value) {
+  const response = await fetchPublicMedia(validateSegmentUrl(value));
+  if (!response.ok || !response.body || /(?:text\/html|application\/json)/i.test(response.headers.get("Content-Type") || "")) {
+    await response.body?.cancel();
+    return new Response("動画データの取得に失敗しました。", { status: 502 });
+  }
+  return new Response(response.body, {
+    headers: { "Content-Type": "video/mp2t", "Cache-Control": "no-store" },
+  });
+}
+
+async function fetchPublicMedia(value, options = {}) {
+  let url = validatePageUrl(value);
+  for (let redirects = 0; redirects < 5; redirects += 1) {
+    const response = await fetch(url, {
+      ...options,
+      redirect: "manual",
+      signal: AbortSignal.timeout(30000),
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("Location");
+    await response.body?.cancel();
+    if (!location) throw new Error("配信先のURLを確認できませんでした。");
+    url = validatePageUrl(new URL(location, url).toString());
+  }
+  throw new Error("動画の転送回数が多すぎます。");
 }

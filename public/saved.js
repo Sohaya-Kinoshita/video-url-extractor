@@ -45,10 +45,10 @@ function renderSavedVideos() {
     const actions = document.createElement("div");
     actions.className = "action-group";
 
-    const openButton = createButton("開く", "open-button", () => {
-      openSavedUrl(item.url);
+    const openButton = createButton(item.kind === "hls" ? "MP4再生" : "開く", "open-button", () => {
+      window.videoUrlStorage.openUrl(item.url);
     });
-    const saveText = item.kind === "hls" ? "TS保存" : "保存";
+    const saveText = item.kind === "hls" ? "MP4保存" : "保存";
     const saveButton = createButton(saveText, "save-button", (button) => {
       window.videoUrlStorage.downloadUrl(item.url);
       flashButton(button, "開始", saveText);
@@ -102,11 +102,6 @@ function createButton(text, className, onClick) {
   button.textContent = text;
   button.addEventListener("click", () => onClick(button));
   return button;
-}
-
-function openSavedUrl(url) {
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (opened) opened.opener = null;
 }
 
 function flashButton(button, doneText, originalText) {

@@ -41,6 +41,10 @@
   }
 
   function downloadUrl(url) {
+    if (isHlsUrl(url)) {
+      openUrl(url, true);
+      return;
+    }
     const downloadHref = `/api/download?url=${encodeURIComponent(url)}`;
     if (isIOS()) {
       window.location.href = downloadHref;
@@ -54,6 +58,22 @@
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+  }
+
+  function isHlsUrl(url) {
+    try {
+      return new URL(url).pathname.toLowerCase().endsWith(".m3u8");
+    } catch {
+      return false;
+    }
+  }
+
+  function openUrl(url, download = false) {
+    const href = isHlsUrl(url)
+      ? `/mp4.html?url=${encodeURIComponent(url)}${download ? "&download=1" : ""}`
+      : url;
+    const opened = window.open(href, "_blank", "noopener,noreferrer");
+    if (opened) opened.opener = null;
   }
 
   function suggestFileName(url) {
@@ -93,6 +113,7 @@
   window.videoUrlStorage = {
     deleteSavedVideo,
     downloadUrl,
+    openUrl,
     readTemporaryExtraction,
     readSavedVideos,
     saveVideoUrl,

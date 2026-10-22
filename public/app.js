@@ -108,10 +108,9 @@ function renderResults(results) {
     const openButton = document.createElement("button");
     openButton.type = "button";
     openButton.className = "open-button";
-    openButton.textContent = "開く";
+    openButton.textContent = item.kind === "hls" ? "MP4再生" : "開く";
     openButton.addEventListener("click", () => {
-      const opened = window.open(item.url, "_blank", "noopener,noreferrer");
-      if (opened) opened.opener = null;
+      window.videoUrlStorage.openUrl(item.url);
     });
 
     const rememberButton = document.createElement("button");
@@ -126,10 +125,10 @@ function renderResults(results) {
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.className = "save-button";
-    saveButton.textContent = item.kind === "hls" ? "TS保存" : "保存";
+    saveButton.textContent = item.kind === "hls" ? "MP4保存" : "保存";
     saveButton.addEventListener("click", () => {
       window.videoUrlStorage.downloadUrl(item.url);
-      flashButton(saveButton, "開始", item.kind === "hls" ? "TS保存" : "保存");
+      flashButton(saveButton, "開始", item.kind === "hls" ? "MP4保存" : "保存");
     });
 
     const copyButton = document.createElement("button");

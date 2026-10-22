@@ -164,9 +164,14 @@ export function parseHlsPlaylist(text, playlistUrl) {
 
   const variants = [];
   const segments = [];
+  let duration = 0;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
+    if (line.startsWith("#EXTINF:")) {
+      const seconds = Number(line.slice(8).split(",")[0]);
+      if (Number.isFinite(seconds) && seconds > 0) duration += seconds;
+    }
     if (line.startsWith("#EXT-X-STREAM-INF")) {
       const nextLine = lines[index + 1];
       if (nextLine && !nextLine.startsWith("#")) {
@@ -188,6 +193,7 @@ export function parseHlsPlaylist(text, playlistUrl) {
   return {
     variants,
     segments: variants.length ? [] : segments,
+    duration,
   };
 }
 

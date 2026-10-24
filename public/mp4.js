@@ -4,7 +4,7 @@ const progress = document.querySelector("#mp4-progress");
 const video = document.querySelector("#mp4-video");
 const save = document.querySelector("#mp4-save");
 const cancel = document.querySelector("#mp4-cancel");
-const retry = document.querySelector("#mp4-retry");
+const startButton = document.querySelector("#mp4-start");
 const original = document.querySelector("#mp4-original");
 let worker;
 let objectUrl;
@@ -16,17 +16,28 @@ function showError(message) {
   status.classList.add("error");
   progress.hidden = true;
   cancel.hidden = true;
-  retry.hidden = !targetUrl;
+  startButton.textContent = "再試行";
+  startButton.hidden = !targetUrl;
+}
+
+function waitForStart() {
+  status.textContent = "「変換スタート」を押すとMP4への変換を開始します。";
+  status.classList.remove("error");
+  progress.hidden = true;
+  cancel.hidden = true;
+  startButton.textContent = "変換スタート";
+  startButton.hidden = false;
 }
 
 function start() {
+  if (!targetUrl) return;
   worker?.terminate();
   status.textContent = "MP4を準備しています…";
   status.classList.remove("error");
   progress.value = 0;
   progress.hidden = false;
   cancel.hidden = false;
-  retry.hidden = true;
+  startButton.hidden = true;
   try {
     worker = new Worker("/mp4-worker.js?v=2", { type: "module" });
     worker.onmessage = ({ data }) => {
@@ -61,7 +72,7 @@ function start() {
 }
 
 cancel.addEventListener("click", () => showError("MP4の準備を中止しました。"));
-retry.addEventListener("click", start);
+startButton.addEventListener("click", start);
 video.addEventListener("loadeddata", () => {
   status.textContent = "MP4の準備ができました。再生ボタンで視聴できます。";
 });
@@ -76,7 +87,7 @@ window.addEventListener("pagehide", (event) => {
   if (!event.persisted && objectUrl) URL.revokeObjectURL(objectUrl);
 });
 window.addEventListener("pageshow", (event) => {
-  if (event.persisted && targetUrl && !objectUrl) start();
+  if (event.persisted && targetUrl && !objectUrl) waitForStart();
 });
 
 try {
@@ -87,7 +98,7 @@ try {
   targetUrl = url.toString();
   original.href = targetUrl;
   original.hidden = false;
-  start();
+  waitForStart();
 } catch {
   showError("動画URLを確認できませんでした。抽出ページから開き直してください。");
 }

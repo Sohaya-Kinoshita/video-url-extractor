@@ -109,7 +109,7 @@ function renderResults(results) {
     const openButton = document.createElement("button");
     openButton.type = "button";
     openButton.className = "open-button";
-    openButton.textContent = item.kind === "hls" ? "MP4" : "開く";
+    openButton.textContent = item.kind === "hls" ? "MP4" : "再生";
     openButton.addEventListener("click", () => {
       window.videoUrlStorage.openUrl(item.url);
     });
@@ -150,7 +150,11 @@ function renderResults(results) {
       flashButton(copyButton, "完了", "コピー");
     });
 
-    actions.append(openButton, rememberButton, saveButton, copyButton);
+    if (item.kind === "hls") {
+      actions.append(saveButton, openButton, rememberButton, copyButton);
+    } else {
+      actions.append(openButton, saveButton, rememberButton, copyButton);
+    }
     row.append(content, actions);
     resultsEl.appendChild(row);
   }

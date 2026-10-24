@@ -81,7 +81,7 @@ function renderSavedVideos(items) {
     const actions = document.createElement("div");
     actions.className = "action-group";
 
-    const openButton = createButton(item.kind === "hls" ? "MP4" : "開く", "open-button", () => {
+    const openButton = createButton(item.kind === "hls" ? "MP4" : "再生", "open-button", () => {
       window.videoUrlStorage.openUrl(item.url);
     });
     const saveText = item.kind === "hls" ? "再生" : "保存";
@@ -107,7 +107,11 @@ function renderSavedVideos(items) {
       finally { button.disabled = false; }
     });
 
-    actions.append(openButton, saveButton, copyButton, deleteButton);
+    if (item.kind === "hls") {
+      actions.append(saveButton, openButton, copyButton, deleteButton);
+    } else {
+      actions.append(openButton, saveButton, copyButton, deleteButton);
+    }
     row.append(content, actions);
     savedResultsEl.appendChild(row);
   }

@@ -14,7 +14,6 @@
           <nav class="nav-group" aria-label="ページ移動">
             <a class="nav-link" href="/">抽出ページへ</a>
             <a class="nav-link" href="/saved.html">保存リストへ</a>
-            <button type="button" class="logout-button" data-logout>ログアウト</button>
           </nav>
         </div>
         <h1>抽出履歴</h1>
@@ -25,7 +24,10 @@
         <div id="history-results" class="results empty"><p>履歴を読み込んでいます…</p></div>
       </section>
       <button id="history-more" class="load-more" type="button" hidden>さらに表示</button>
-      <p class="last-updated">最終更新: 2026-10-24 15:28 JST</p>
+      <footer class="page-footer">
+        <p class="last-updated">最終更新: 2026-10-24 16:45 JST</p>
+        <button type="button" class="logout-button" data-logout>ログアウト</button>
+      </footer>
     </main>
     <script src="/storage.js"></script>
     <script src="/private.js" defer></script>

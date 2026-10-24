@@ -41,6 +41,17 @@ it('falls back to the shared API when a /d/ mirror has no local API', async () =
   assert.equal(results[0].url, 'https://media.example/real.mp4');
 });
 
+it('uses Workers-compatible manual redirects and never follows an API redirect to a private target', async () => {
+  let calls = 0;
+  const results = await extractKnownProviderUrls('https://twimg.com.pl/d/AbCd12', async (_url, options) => {
+    calls += 1;
+    assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'http://127.0.0.1/private-api' } });
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(results, []);
+});
+
 it('resolves signed file rows through public HTML players, keeping thumbnails and skipping folder rows', async () => {
   const html = row('video1.mp4') + row('subfolder') + row('video2.mov');
   const calls = [];
@@ -96,6 +107,12 @@ it('reports browser verification rather than inventing a video URL', async () =>
     return new Response('<form method="POST" action="/__pow"><input name="token"></form>', { headers: { 'Content-Type': 'text/html' } });
   }), /ブラウザ確認/);
   assert.equal(calls, 1);
+});
+
+it('does not report a substituted article as a successful empty extraction', async () => {
+  await assert.rejects(fetchHtml('https://article.example/article/abc', async () => new Response(
+    '<html><link rel="stylesheet" href="https://news.wokao.win/style.css"></html>', { headers: { 'Content-Type': 'text/html' } },
+  )), /ブラウザ確認/);
 });
 
 it('shares one request budget across linked pages and directory redirects and reports partial results', async (t) => {

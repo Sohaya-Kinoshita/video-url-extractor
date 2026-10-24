@@ -274,7 +274,8 @@ async function fetchNavigationPage(url, fetchImpl, allowMedia) {
   if (html.length > MAX_HTML_CHARS) {
     throw httpError("HTMLが大きすぎるため解析を中止しました。", 400);
   }
-  if (/<form\b[^>]*action=["']\/?__pow["']/i.test(html) || /cf-chl-|challenge-platform\//i.test(html)) {
+  const substitutedArticle = new URL(pageUrl).pathname.startsWith('/article/') && /https:\/\/news\.wokao\.win\/style\.css/i.test(html);
+  if (substitutedArticle || /<form\b[^>]*action=["']\/?__pow["']/i.test(html) || /cf-chl-|challenge-platform\//i.test(html)) {
     throw httpError("このサイトはブラウザ確認が必要です。Safariで動画を再生し、「ブラウザから取り込む」を使ってください。", 422);
   }
 
@@ -677,7 +678,7 @@ async function fetchViloloJson(path, params, fetchImpl, localApi = usesViloloLoc
         Origin: `https://${params.domain}`,
         Referer: `https://${params.domain}/`,
       },
-      redirect: "error",
+      redirect: "manual",
     });
     if (!response.ok) { await response.body?.cancel(); return null; }
     const payload = await response.json();

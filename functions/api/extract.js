@@ -38,6 +38,7 @@ export async function onRequestPost({ request, env }) {
     }
     return jsonResponse({
       historySaved,
+      ...(body.diagnostics === true ? { diagnostics: budget.diagnostics } : {}),
       warnings: budget.limited ? ["探索件数の上限に達したため、一部のリンクを省略しました。必要なページのURLで再探索してください。"] : [],
       pageUrl,
       scannedPageCount,

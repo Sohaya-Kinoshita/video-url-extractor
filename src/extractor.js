@@ -202,20 +202,32 @@ export function createExtractionFetch(fetchImpl = fetch, limit = 40) {
   let count = 0;
   let scannedPages = 0;
   let limited = false;
+  const diagnostics = [];
   const boundedFetch = async (url, options = {}) => {
     if (count >= limit) {
       limited = true;
       throw httpError("探索件数の上限に達しました。", 429);
     }
     count += 1;
-    const response = await fetchImpl(validatePageUrl(url), {
+    const parsed = new URL(validatePageUrl(url));
+    const diagnostic = { host: parsed.hostname, path: parsed.pathname };
+    diagnostics.push(diagnostic);
+    let response;
+    try { response = await fetchImpl(parsed.href, {
       ...options,
       signal: options.signal || AbortSignal.timeout(15000),
-    });
+    }); } catch (error) { diagnostic.error = error.name || 'FetchError'; throw error; }
+    diagnostic.status = response.status;
+    diagnostic.contentType = response.headers.get('Content-Type') || '';
     if (response.ok && /text\/html|application\/xhtml\+xml/i.test(response.headers.get('Content-Type') || '')) scannedPages += 1;
     return response;
   };
-  return { fetch: boundedFetch, get limited() { return limited; }, get scannedPages() { return scannedPages; } };
+  boundedFetch.note = (url, fields) => {
+    const parsed = new URL(url);
+    const record = diagnostics.findLast((item) => item.host === parsed.hostname && item.path === parsed.pathname);
+    if (record) Object.assign(record, fields);
+  };
+  return { fetch: boundedFetch, diagnostics, get limited() { return limited; }, get scannedPages() { return scannedPages; } };
 }
 
 export async function fetchHtml(url, fetchImpl = fetch) {
@@ -659,11 +671,17 @@ async function fetchViloloJson(path, params, fetchImpl, localApi = usesViloloLoc
 
   try {
     const response = await fetchImpl(apiUrl, {
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        "User-Agent": PAGE_USER_AGENT,
+        Origin: `https://${params.domain}`,
+        Referer: `https://${params.domain}/`,
+      },
       redirect: "error",
     });
     if (!response.ok) { await response.body?.cancel(); return null; }
     const payload = await response.json();
+    fetchImpl.note?.(apiUrl, { providerCode: payload?.code, hasInfo: !!payload?.data?.info });
     return payload?.code === 0 ? payload : null;
   } catch {
     return null;

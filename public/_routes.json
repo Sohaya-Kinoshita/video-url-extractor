@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "include": ["/api/*", "/", "/index", "/index.html", "/saved*", "/history*", "/mp4", "/mp4.html"],
+  "exclude": ["/saved.js", "/history.js"]
+}

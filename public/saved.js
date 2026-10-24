@@ -1,11 +1,47 @@
 const savedResultsEl = document.querySelector("#saved-results");
 const savedCountEl = document.querySelector("#saved-count");
 
-renderSavedVideos();
+const savedStatus = document.querySelector("#saved-status");
+const savedMore = document.querySelector("#saved-more");
+const importButton = document.querySelector("#import-local");
+let savedItems = [];
+let savedCursor = null;
 
-function renderSavedVideos() {
-  const items = window.videoUrlStorage.readSavedVideos();
-  savedCountEl.textContent = `${items.length}件`;
+async function loadSavedVideos(reset = false) {
+  savedMore.disabled = true;
+  savedStatus.textContent = "読み込んでいます…";
+  savedStatus.classList.remove("error");
+  try {
+    const data = await window.videoUrlStorage.readSavedVideos(reset ? null : savedCursor);
+    savedItems = reset ? data.items : [...savedItems, ...data.items];
+    savedCursor = data.cursor;
+    renderSavedVideos(savedItems);
+    savedMore.hidden = !savedCursor;
+    savedStatus.textContent = "";
+  } catch (error) {
+    savedStatus.textContent = error.message;
+    savedStatus.classList.add("error");
+    savedMore.hidden = false;
+  } finally { savedMore.disabled = false; }
+}
+savedMore.addEventListener("click", () => loadSavedVideos());
+try { importButton.hidden = !window.videoUrlStorage.localImportNeeded(); } catch { importButton.hidden = true; }
+importButton.addEventListener("click", async () => {
+  importButton.disabled = true;
+  try {
+    const count = await window.videoUrlStorage.importLocalVideos((done, total) => {
+      savedStatus.textContent = `端末の保存データを取り込み中… ${done}/${total}件`;
+    });
+    importButton.hidden = true;
+    await loadSavedVideos(true);
+    savedStatus.textContent = `${count}件の取り込みが完了しました。端末の元データも残しています。`;
+  } catch (error) { savedStatus.textContent = error.message; savedStatus.classList.add("error"); }
+  finally { importButton.disabled = false; }
+});
+loadSavedVideos(true);
+
+function renderSavedVideos(items) {
+  savedCountEl.textContent = `${items.length}件${savedCursor ? "以上" : ""}`;
   savedResultsEl.innerHTML = "";
 
   if (!items.length) {
@@ -62,9 +98,13 @@ function renderSavedVideos() {
       await navigator.clipboard.writeText(item.url);
       flashButton(button, "完了", "コピー");
     });
-    const deleteButton = createButton("削除", "delete-button", () => {
-      window.videoUrlStorage.deleteSavedVideo(item.url);
-      renderSavedVideos();
+    const deleteButton = createButton("削除", "delete-button", async (button) => {
+      button.disabled = true;
+      try {
+        await window.videoUrlStorage.deleteSavedVideo(item.url);
+        await loadSavedVideos(true);
+      } catch (error) { savedStatus.textContent = error.message; savedStatus.classList.add("error"); }
+      finally { button.disabled = false; }
     });
 
     actions.append(openButton, saveButton, copyButton, deleteButton);

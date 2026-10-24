@@ -12,6 +12,13 @@
   --shadow: 0 16px 40px rgba(31, 42, 55, 0.1);
 }
 
+[hidden] { display: none !important; }
+.nav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.logout-button { min-height: 36px; padding: 0 12px; background: #22303c; font-size: 0.85rem; }
+.load-more { margin-top: 16px; }
+.login-shell { max-width: 640px; }
+#login-form { display: grid; gap: 14px; }
+
 * {
   box-sizing: border-box;
 }

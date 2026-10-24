@@ -11,7 +11,11 @@
       <section class="intro" aria-labelledby="page-title">
         <div class="page-nav">
           <p class="eyebrow">Video URL Extractor</p>
-          <a class="nav-link" href="/saved.html">保存リストへ</a>
+          <nav class="nav-group" aria-label="ページ移動">
+            <a class="nav-link" href="/saved.html">保存リストへ</a>
+            <a class="nav-link" href="/history.html">抽出履歴へ</a>
+            <button type="button" class="logout-button" data-logout>ログアウト</button>
+          </nav>
         </div>
         <h1 id="page-title">Webページ内の動画URLを抽出</h1>
         <p class="lead">
@@ -55,10 +59,11 @@
         </div>
       </section>
 
-      <p class="last-updated">最終更新: 2026-10-24 14:48 JST</p>
+      <p class="last-updated">最終更新: 2026-10-24 15:28 JST</p>
     </main>
 
     <script src="/storage.js"></script>
+    <script src="/private.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

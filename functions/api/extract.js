@@ -10,7 +10,7 @@ import {
 
 const LINKED_PAGE_LIMIT = 8;
 
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
   try {
     const body = await readJsonBody(request);
     const targetUrl = validatePageUrl(body.url);
@@ -26,7 +26,18 @@ export async function onRequestPost({ request }) {
         : await extractLinkedPageResults(html, pageUrl);
     const results = dedupeResults([...primaryResults, ...linkedPageResults]);
 
+    let historySaved = false;
+    if (env?.DB) {
+      try {
+        await env.DB.prepare(`INSERT INTO extraction_history
+          (input_url,page_url,result_count,scanned_page_count,created_at) VALUES (?,?,?,?,?)`)
+          .bind(targetUrl.href || String(targetUrl), pageUrl, results.length,
+            1 + (linkedPageResults.scannedPageCount || 0), new Date().toISOString()).run();
+        historySaved = true;
+      } catch { /* Extraction results remain usable when history storage is unavailable. */ }
+    }
     return jsonResponse({
+      historySaved,
       pageUrl,
       scannedPageCount: 1 + (linkedPageResults.scannedPageCount || 0),
       count: results.length,

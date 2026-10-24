@@ -8,6 +8,11 @@ const resultsEl = document.querySelector("#results");
 const countEl = document.querySelector("#result-count");
 
 restoreTemporaryExtraction();
+const requestedUrl = new URLSearchParams(location.search).get("url");
+if (requestedUrl) {
+  urlInput.value = requestedUrl;
+  setStatus("履歴のURLを入力しました。「探索」で再取得できます。");
+}
 
 pasteButton.addEventListener("click", async () => {
   try {
@@ -35,16 +40,11 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const scanLinkedPages = scanLinkedPagesInput.checked;
-    const response = await fetch("/api/extract", {
+    const payload = await window.videoUrlStorage.api("/api/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, scanLinkedPages }),
+      body: { url, scanLinkedPages },
     });
-
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "解析に失敗しました。");
-    }
 
     const results = payload.results || [];
     renderResults(results);
@@ -57,6 +57,7 @@ form.addEventListener("submit", async (event) => {
       savedAt: new Date().toISOString(),
     });
     setStatus(buildExtractedMessage(payload.pageUrl, payload.scannedPageCount || 1));
+    if (!payload.historySaved) setStatus(`${statusEl.textContent} 履歴の保存に失敗しました。`, true);
   } catch (error) {
     renderResults([]);
     setStatus(error.message || "解析に失敗しました。", true);
@@ -117,9 +118,13 @@ function renderResults(results) {
     rememberButton.type = "button";
     rememberButton.className = "remember-button";
     rememberButton.textContent = "記憶";
-    rememberButton.addEventListener("click", () => {
-      window.videoUrlStorage.saveVideoUrl(item);
-      flashButton(rememberButton, "記憶済み", "記憶");
+    rememberButton.addEventListener("click", async () => {
+      rememberButton.disabled = true;
+      try {
+        await window.videoUrlStorage.saveVideoUrl(item);
+        flashButton(rememberButton, "記憶済み", "記憶");
+      } catch (error) { setStatus(error.message, true); }
+      finally { rememberButton.disabled = false; }
     });
 
     const saveButton = document.createElement("button");

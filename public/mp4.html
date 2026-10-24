@@ -11,7 +11,11 @@
       <section class="intro" aria-labelledby="page-title">
         <div class="page-nav">
           <p class="eyebrow">Video URL Extractor</p>
-          <a class="nav-link" href="/">抽出ページへ</a>
+          <nav class="nav-group" aria-label="ページ移動">
+            <a class="nav-link" href="/">抽出ページへ</a>
+            <a class="nav-link" href="/saved.html">保存リストへ</a>
+            <button type="button" class="logout-button" data-logout>ログアウト</button>
+          </nav>
         </div>
         <h1 id="page-title">MP4で視聴・保存</h1>
         <p class="lead">「変換スタート」を押すと、画質を変えずにMP4に変換します。変換中はこのページを開いてお待ちください。</p>
@@ -28,8 +32,10 @@
         </div>
         <p class="mp4-note">MP4の準備には動画全体の通信量がかかります。保存できない場合は「MP4を保存」をもう一度押してください。</p>
       </section>
-      <p class="last-updated">最終更新: 2026-10-24 14:48 JST</p>
+      <p class="last-updated">最終更新: 2026-10-24 15:28 JST</p>
     </main>
+    <script src="/storage.js"></script>
+    <script src="/private.js" defer></script>
     <script type="module" src="/mp4.js?v=3"></script>
   </body>
 </html>

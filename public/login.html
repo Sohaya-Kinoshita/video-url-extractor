@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ログイン - Video URL Extractor</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta name="referrer" content="no-referrer" />
+  </head>
+  <body>
+    <main class="app-shell login-shell">
+      <section class="intro">
+        <p class="eyebrow">Video URL Extractor</p>
+        <h1>自分専用の動画リスト</h1>
+        <p class="lead">ログインすると、保存したURLと抽出履歴を別の端末からも確認できます。</p>
+      </section>
+      <section class="tool-panel">
+        <form id="login-form" class="extract-form">
+          <label for="password">パスワード</label>
+          <input id="password" type="password" autocomplete="current-password" required maxlength="256" />
+          <button type="submit" id="login-button">ログイン</button>
+        </form>
+        <p id="login-status" class="status" role="status" aria-live="polite"></p>
+      </section>
+      <p class="last-updated">最終更新: 2026-10-24 15:28 JST</p>
+    </main>
+    <script src="/storage.js"></script>
+    <script src="/login.js" defer></script>
+  </body>
+</html>

@@ -37,7 +37,11 @@ https://gofile.io/d/65pGBWhc
 
 ## 保存リスト
 
-抽出結果の「記憶」ボタンを押すと、動画URLを端末のブラウザ内に保存します。保存済みURLは次のページで確認、再度開く、保存、コピー、削除できます。
+抽出結果の「記憶」ボタンを押すと、動画URLをCloudflare D1に保存します。パスワードでログインすると、別の端末からも同じ保存リストを確認、再度開く、保存、コピー、削除できます。動画ファイル自体はDBに保存しません。
+
+以前のブラウザ内保存データが残っている場合、保存リストに「この端末の保存リストを取り込む」が表示されます。同じブラウザ・同じURLでログインして取り込んでください。元データは消さず、同じURLは重複させません。途中で失敗した場合も再実行でき、DBの新しい保存内容は古いデータで上書きしません。
+
+探索が成功すると、入力URL・到達先URL・件数・探索ページ数・日時をD1の抽出履歴に保存します。`/history.html` の「再探索」はフォームにURLを戻します。再取得は「探索」を押して開始します。抽出結果全体や動画データは履歴に保存しません。
 
 ```text
 https://<your-project>.pages.dev/saved.html
@@ -61,17 +65,33 @@ Gofileの公開共有フォルダ（`https://gofile.io/d/<id>`）では、フォ
 
 配信元APIのファイル名やタイトル（例: `movie.mp4`）は動画URLとして扱いません。実際の配信用URLを抽出し、ファイル名から存在しない `.mp4` リンクが生成されることを防ぎます。
 
-## ローカル起動
+## 専用DBとログインの設定
+
+1. `wrangler login --scopes account:read user:read d1:write pages:write` で接続します。
+2. `wrangler.toml` の `DB` に専用D1を指定します。このプロジェクトでは `video-url-extractor-db` を作成済みです。
+3. `wrangler d1 migrations apply video-url-extractor-db --remote` を実行します。
+4. `node scripts/create-owner-password.mjs` で256ビットのランダムパスワードを生成します。既存ファイルがあれば上書きしません。
+5. `.dev.vars` の `OWNER_PASSWORD_SHA256` の値を、Pagesプロジェクトの同名の**シークレット**に設定します。`wrangler pages secret put OWNER_PASSWORD_SHA256 --project-name video-url-extractor` でも設定できます。
+6. GitHubの `main` に反映してデプロイします。パスワードは `owner-access.local.txt` を開いて確認し、安全な場所に保管してください。
+
+生成される `.dev.vars`、`owner-access.local.txt`、`.local/` はGitの対象外です。平文パスワードはCloudflareへ設定せず、256ビットのランダム値のSHA-256だけをシークレットとして保持します。この方式を人が考えた短いパスワードに流用しないでください。パスワード用ハッシュを変更すると既存のログインも無効になります。プレビュー環境には本番DB・シークレットを割り当てず、未設定時は専用画面・APIを503で閉じます。
+
+ログイン状態はHttpOnly・Secure・SameSite=StrictのCookieで30日間保持し、DBにはCookieトークンのハッシュを保存します。ログアウト時にトークンを無効化します。ログイン試行はIPごとに15分間5回までに制限し、変更APIは同じサイトからの送信だけを受け付けます。DBやシークレットが未設定の場合、APIは公開状態に戻りません。
+
+### ローカル確認
 
 Node.jsが入っている環境で実行します。
 
 ```powershell
 cd C:\Users\izumi\VideoFinder\video-url-extractor
 npm install
+wrangler d1 migrations apply video-url-extractor-db --local
 npm run dev
 ```
 
 表示されたローカルURLをブラウザで開きます。
+
+Node.js 24では `node local-dev.mjs` でも起動できます。実際のSQLiteと同じ認証・APIを使用し、データは `.local/storage.sqlite` に保存します。本番DBは変更しません。上記で生成した `.dev.vars` とパスワードを使用します。
 
 ## テスト
 

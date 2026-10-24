@@ -1,11 +1,9 @@
-import "./vendor/mux-mp4.min.js";
-import { convertHlsToMp4 } from "./mp4-converter.js";
+import { convertHlsToMp4 } from "./mp4-converter.js?v=2";
 
 self.onmessage = async ({ data }) => {
   try {
     const result = await convertHlsToMp4({
       url: data.url,
-      Transmuxer: globalThis.muxjs.Transmuxer,
       onProgress: (progress) => self.postMessage({ type: "progress", ...progress }),
     });
     self.postMessage({ type: "done", ...result });

@@ -28,11 +28,16 @@ function start() {
   cancel.hidden = false;
   retry.hidden = true;
   try {
-    worker = new Worker("/mp4-worker.js", { type: "module" });
+    worker = new Worker("/mp4-worker.js?v=2", { type: "module" });
     worker.onmessage = ({ data }) => {
       if (data.type === "progress") {
-        progress.value = Math.round(data.completed / data.total * 100);
-        status.textContent = `MP4を準備しています… ${progress.value}%（${(data.bytes / 1024 / 1024).toFixed(1)} MB）`;
+        if (data.phase === "convert") {
+          progress.value = Math.round(95 + 5 * data.progress);
+          status.textContent = "MP4の映像・音声を仕上げています…";
+        } else {
+          progress.value = Math.round(data.completed / data.total * 95);
+          status.textContent = `MP4を準備しています… ${progress.value}%（${(data.bytes / 1024 / 1024).toFixed(1)} MB）`;
+        }
       } else if (data.type === "done") {
         objectUrl = URL.createObjectURL(data.blob);
         video.src = objectUrl;
@@ -42,7 +47,8 @@ function start() {
         save.hidden = false;
         progress.hidden = true;
         cancel.hidden = true;
-        status.textContent = "MP4の準備ができました。再生ボタンで視聴できます。";
+        status.textContent = "MP4の映像を読み込んでいます…";
+        video.load();
         worker.terminate();
         if (params.get("download") === "1") save.click();
       } else if (data.type === "error") showError(data.message);
@@ -56,6 +62,12 @@ function start() {
 
 cancel.addEventListener("click", () => showError("MP4の準備を中止しました。"));
 retry.addEventListener("click", start);
+video.addEventListener("loadeddata", () => {
+  status.textContent = "MP4の準備ができました。再生ボタンで視聴できます。";
+});
+video.addEventListener("playing", () => {
+  status.textContent = "MP4を再生しています。";
+});
 video.addEventListener("error", () => {
   status.textContent = "このブラウザでは再生できません。「MP4を保存」から動画プレーヤーで開いてください。";
 });

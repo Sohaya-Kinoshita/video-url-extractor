@@ -47,7 +47,7 @@ https://<your-project>.pages.dev/saved.html
 
 MP4変換はH.264/AACのMPEG-TSによる完結したHLS動画（最大300セグメント、128 MBまで）に対応します。暗号化、ライブ配信、fMP4セグメント、バイト範囲指定、途中で形式が切り替わる動画は対象外です。対応しない場合は「元のURLから開く」で配信元を開けます。従来の `/api/download?url=<HLS URL>` によるTS保存も引き続き利用できます。
 
-MP4への再格納には同梱のmux.js 6.3.0（Apache-2.0）を使用します。配布物は `public/vendor/mux-mp4.min.js`、ライセンスは `public/vendor/mux-LICENSE.txt` にあります。
+MP4への再格納には同梱のMediabunny 1.62.0（MPL-2.0）を使用します。iPhone Safariなどでの互換性を高めるため、ストリーミング用の分割MP4ではなく、映像・音声のサンプルテーブルを持つ通常のMP4（Fast Start）を書き出します。再エンコードは行いません。配布物、ライセンス、ソースの参照先は `public/vendor/` にあります。
 
 抽出ページでは直近の抽出結果を `sessionStorage` に一時保存します。動画を開いてから戻った場合でも、同じタブでは前回の結果が復元されます。
 

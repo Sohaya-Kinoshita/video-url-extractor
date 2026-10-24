@@ -45,14 +45,19 @@ function renderSavedVideos() {
     const actions = document.createElement("div");
     actions.className = "action-group";
 
-    const openButton = createButton(item.kind === "hls" ? "MP4再生" : "開く", "open-button", () => {
+    const openButton = createButton(item.kind === "hls" ? "MP4" : "開く", "open-button", () => {
       window.videoUrlStorage.openUrl(item.url);
     });
-    const saveText = item.kind === "hls" ? "MP4保存" : "保存";
+    const saveText = item.kind === "hls" ? "再生" : "保存";
     const saveButton = createButton(saveText, "save-button", (button) => {
+      if (item.kind === "hls") {
+        window.videoUrlStorage.openOriginalUrl(item.url);
+        return;
+      }
       window.videoUrlStorage.downloadUrl(item.url);
       flashButton(button, "開始", saveText);
     });
+    if (item.kind === "hls") saveButton.title = "変換せず元の形式で再生";
     const copyButton = createButton("コピー", "copy-button", async (button) => {
       await navigator.clipboard.writeText(item.url);
       flashButton(button, "完了", "コピー");

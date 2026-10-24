@@ -72,7 +72,11 @@
     const href = isHlsUrl(url)
       ? `/mp4.html?url=${encodeURIComponent(url)}${download ? "&download=1" : ""}`
       : url;
-    const opened = window.open(href, "_blank", "noopener,noreferrer");
+    openOriginalUrl(href);
+  }
+
+  function openOriginalUrl(url) {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
     if (opened) opened.opener = null;
   }
 
@@ -114,6 +118,7 @@
     deleteSavedVideo,
     downloadUrl,
     openUrl,
+    openOriginalUrl,
     readTemporaryExtraction,
     readSavedVideos,
     saveVideoUrl,

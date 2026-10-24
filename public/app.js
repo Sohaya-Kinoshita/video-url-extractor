@@ -108,7 +108,7 @@ function renderResults(results) {
     const openButton = document.createElement("button");
     openButton.type = "button";
     openButton.className = "open-button";
-    openButton.textContent = item.kind === "hls" ? "MP4再生" : "開く";
+    openButton.textContent = item.kind === "hls" ? "MP4" : "開く";
     openButton.addEventListener("click", () => {
       window.videoUrlStorage.openUrl(item.url);
     });
@@ -125,10 +125,15 @@ function renderResults(results) {
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.className = "save-button";
-    saveButton.textContent = item.kind === "hls" ? "MP4保存" : "保存";
+    saveButton.textContent = item.kind === "hls" ? "再生" : "保存";
+    if (item.kind === "hls") saveButton.title = "変換せず元の形式で再生";
     saveButton.addEventListener("click", () => {
+      if (item.kind === "hls") {
+        window.videoUrlStorage.openOriginalUrl(item.url);
+        return;
+      }
       window.videoUrlStorage.downloadUrl(item.url);
-      flashButton(saveButton, "開始", item.kind === "hls" ? "MP4保存" : "保存");
+      flashButton(saveButton, "開始", "保存");
     });
 
     const copyButton = document.createElement("button");

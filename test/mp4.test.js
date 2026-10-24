@@ -140,7 +140,7 @@ it("does not save invalid media as a renamed MP4", async () => {
   }), /映像・音声形式/);
 });
 
-it("routes HLS open and save actions to the MP4 page, preserving signed URLs", () => {
+it("keeps MP4 conversion separate from original playback, preserving signed URLs", () => {
   const opened = [];
   const context = { window: { open: (...args) => opened.push(args) }, URL };
   runInNewContext(readFileSync(new URL("../public/storage.js", import.meta.url), "utf8"), context);
@@ -149,7 +149,9 @@ it("routes HLS open and save actions to the MP4 page, preserving signed URLs", (
   storage.openUrl(url);
   storage.downloadUrl(url);
   storage.openUrl("https://media.example.com/movie.mp4");
+  storage.openOriginalUrl(url);
   assert.equal(opened[0][0], `/mp4.html?url=${encodeURIComponent(url)}`);
   assert.equal(opened[1][0], `/mp4.html?url=${encodeURIComponent(url)}&download=1`);
   assert.equal(opened[2][0], "https://media.example.com/movie.mp4");
+  assert.equal(opened[3][0], url);
 });

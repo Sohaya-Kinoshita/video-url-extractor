@@ -11,6 +11,7 @@ import { onRequest as auth } from "./functions/api/auth.js";
 import { onRequest as saved } from "./functions/api/saved.js";
 import { onRequestGet as history } from "./functions/api/history.js";
 import { onRequestPost as importSaved } from "./functions/api/import.js";
+import { onRequestPost as capture } from "./functions/api/capture.js";
 import { localD1 } from "./scripts/local-d1.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,6 +41,7 @@ const server = createServer(async (req, res) => {
       if (requestUrl.pathname === '/api/saved') return saved(context);
       if (requestUrl.pathname === '/api/history' && req.method === 'GET') return history(context);
       if (requestUrl.pathname === '/api/import' && req.method === 'POST') return importSaved(context);
+      if (requestUrl.pathname === '/api/capture' && req.method === 'POST') return capture(context);
       if (requestUrl.pathname === '/api/extract') return req.method === 'POST' ? extractPost(context) : extractGet(context);
       if (requestUrl.pathname === '/api/download') return downloadGet(context);
       return serveStatic(requestUrl.pathname);

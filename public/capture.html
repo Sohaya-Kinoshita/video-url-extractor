@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>ブラウザから取り込む - Video URL Extractor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell login-shell">
+      <section class="intro">
+        <p class="eyebrow">Video URL Extractor</p>
+        <h1>ブラウザから取り込む</h1>
+        <p class="lead">Safariで検出した動画URLを抽出結果へ取り込みます。「記憶」を押すと保存リストに登録できます。</p>
+      </section>
+      <section class="tool-panel">
+        <p id="capture-status" class="status" role="status"></p>
+        <p id="capture-source" class="url-text"></p>
+        <button id="capture-confirm" type="button" disabled>抽出結果へ取り込む</button>
+        <a class="nav-link" href="/">抽出ページへ戻る</a>
+      </section>
+    </main>
+    <script src="/capture.js" defer></script>
+  </body>
+</html>

@@ -24,7 +24,7 @@
       if (response.status === 401 && path !== "/api/auth") {
         window.location.assign(`/login.html?next=${encodeURIComponent(location.pathname + location.search)}`);
       }
-      throw new Error(payload.error || "操作に失敗しました。");
+      throw Object.assign(new Error(payload.error || "操作に失敗しました。"), { status: response.status });
     }
     return payload;
   }

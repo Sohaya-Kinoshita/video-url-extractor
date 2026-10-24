@@ -8,10 +8,33 @@ const resultsEl = document.querySelector("#results");
 const countEl = document.querySelector("#result-count");
 
 restoreTemporaryExtraction();
+restoreBrowserCapture();
 const requestedUrl = new URLSearchParams(location.search).get("url");
 if (requestedUrl) {
   urlInput.value = requestedUrl;
   setStatus("履歴のURLを入力しました。「探索」で再取得できます。");
+}
+
+async function restoreBrowserCapture() {
+  let raw;
+  try { raw = sessionStorage.getItem('video-url-extractor:pending-capture'); } catch { return; }
+  if (!raw) return;
+  setLoading(true);
+  setStatus('ブラウザから動画URLを取り込んでいます…');
+  try {
+    const payload = await window.videoUrlStorage.api('/api/capture', { method: 'POST', body: JSON.parse(raw) });
+    renderResults(payload.results);
+    urlInput.value = payload.pageUrl;
+    scanLinkedPagesInput.checked = false;
+    window.videoUrlStorage.saveTemporaryExtraction({ inputUrl: payload.pageUrl, ...payload, scanLinkedPages: false });
+    sessionStorage.removeItem('video-url-extractor:pending-capture');
+    setStatus(`ブラウザから${payload.count}件を取り込みました。保存する動画は「記憶」を押してください。`);
+    if (!payload.historySaved) setStatus(`${statusEl.textContent} 履歴の保存に失敗しました。`, true);
+  } catch (error) {
+    if (error.status >= 400 && error.status < 500 && error.status !== 401) sessionStorage.removeItem('video-url-extractor:pending-capture');
+    setStatus(error.message || '取り込みに失敗しました。', true);
+  }
+  finally { setLoading(false); }
 }
 
 pasteButton.addEventListener("click", async () => {
@@ -57,6 +80,7 @@ form.addEventListener("submit", async (event) => {
       savedAt: new Date().toISOString(),
     });
     setStatus(buildExtractedMessage(payload.pageUrl, payload.scannedPageCount || 1));
+    if (payload.warnings?.length) setStatus(`${statusEl.textContent} ${payload.warnings.join(" ")}`);
     if (!payload.historySaved) setStatus(`${statusEl.textContent} 履歴の保存に失敗しました。`, true);
   } catch (error) {
     renderResults([]);

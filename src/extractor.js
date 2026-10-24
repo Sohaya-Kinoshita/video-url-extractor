@@ -52,6 +52,7 @@ const GOFILE_WEBSITE_TOKEN_SALT = "5d4f7g8sd45fsd";
 const NON_PLAYABLE_VIDEO_PAGE_HOST_RE = /^(www\.)?gofile\.rocks$/;
 const PROVIDER_USER_AGENT =
   "Mozilla/5.0 (compatible; VideoURLExtractor/1.0; +https://pages.dev)";
+const PAGE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 const RELATED_VIDEO_PAGE_SIZE = 20;
 const RELATED_VIDEO_MAX_PAGES = 5;
 const MAX_HTML_CHARS = 5 * 1024 * 1024;
@@ -197,24 +198,63 @@ export function parseHlsPlaylist(text, playlistUrl) {
   };
 }
 
-export async function fetchHtml(url) {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": PROVIDER_USER_AGENT,
-      Accept: "text/html,application/xhtml+xml",
-    },
-    redirect: "follow",
-  });
+export function createExtractionFetch(fetchImpl = fetch, limit = 40) {
+  let count = 0;
+  let scannedPages = 0;
+  let limited = false;
+  const boundedFetch = async (url, options = {}) => {
+    if (count >= limit) {
+      limited = true;
+      throw httpError("探索件数の上限に達しました。", 429);
+    }
+    count += 1;
+    const response = await fetchImpl(validatePageUrl(url), {
+      ...options,
+      signal: options.signal || AbortSignal.timeout(15000),
+    });
+    if (response.ok && /text\/html|application\/xhtml\+xml/i.test(response.headers.get('Content-Type') || '')) scannedPages += 1;
+    return response;
+  };
+  return { fetch: boundedFetch, get limited() { return limited; }, get scannedPages() { return scannedPages; } };
+}
+
+export async function fetchHtml(url, fetchImpl = fetch) {
+  return fetchNavigationPage(url, fetchImpl, false);
+}
+
+async function fetchNavigationPage(url, fetchImpl, allowMedia) {
+  let pageUrl = validatePageUrl(url);
+  let response;
+  for (let redirects = 0; redirects <= 5; redirects += 1) {
+    response = await fetchImpl(pageUrl, {
+      headers: {
+        "User-Agent": PAGE_USER_AGENT,
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "manual",
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) break;
+    const location = response.headers.get("Location");
+    await response.body?.cancel();
+    if (!location || redirects === 5) throw httpError("ページの転送先を確認できませんでした。", 502);
+    pageUrl = validatePageUrl(new URL(location, pageUrl).href);
+  }
 
   if (!response.ok) {
+    await response.body?.cancel();
     throw httpError(`取得先ページがHTTP ${response.status} を返しました。`, 502);
   }
 
   const contentType = response.headers.get("content-type") || "";
+  if (allowMedia && (/^video\//i.test(contentType) || /mpegurl/i.test(contentType) || (/^application\/octet-stream/i.test(contentType) && isVideoFile(pageUrl)))) {
+    await response.body?.cancel();
+    return { html: "", pageUrl, directMedia: true };
+  }
   if (
     !contentType.includes("text/html") &&
     !contentType.includes("application/xhtml+xml")
   ) {
+    await response.body?.cancel();
     throw httpError("HTMLページのURLを入力してください。", 400);
   }
 
@@ -222,10 +262,13 @@ export async function fetchHtml(url) {
   if (html.length > MAX_HTML_CHARS) {
     throw httpError("HTMLが大きすぎるため解析を中止しました。", 400);
   }
+  if (/<form\b[^>]*action=["']\/?__pow["']/i.test(html) || /cf-chl-|challenge-platform\//i.test(html)) {
+    throw httpError("このサイトはブラウザ確認が必要です。Safariで動画を再生し、「ブラウザから取り込む」を使ってください。", 422);
+  }
 
   return {
     html,
-    pageUrl: response.url || url,
+    pageUrl: response.url || pageUrl,
   };
 }
 
@@ -245,8 +288,77 @@ export function extractVideoUrls(html, pageUrl) {
   return [...deduped.values()];
 }
 
-export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
+export async function extractPageVideos(html, pageUrl, fetchImpl = fetch) {
+  const candidates = [
+    ...(await extractKnownProviderUrls(pageUrl, fetchImpl, html)),
+    ...extractVideoUrls(html, pageUrl).filter((item) => item.url !== pageUrl),
+  ];
+  const embedded = candidates.filter((item) => item.kind === "embed").slice(0, 3);
+  const resolved = new Set();
+  for (const item of embedded) {
+    try {
+      const page = await fetchNavigationPage(item.url, fetchImpl, true);
+      const media = page.directMedia ? [{ url: page.pageUrl, kind: kindForUrl(page.pageUrl), source: "Embedded player" }]
+        : extractVideoUrls(page.html, page.pageUrl).filter((result) => result.kind !== "embed" && result.url !== page.pageUrl);
+      if (!media.length) continue;
+      resolved.add(item.url);
+      candidates.push(...media.map((result) => ({ ...result, sourcePage: page.pageUrl })));
+    } catch { /* Keep the original embed link if its player cannot be inspected. */ }
+  }
+  return dedupeCandidates(candidates.filter((item) => !resolved.has(item.url)));
+}
+
+function extractDirectoryLinks(html, pageUrl) {
+  const rows = [...html.matchAll(/<(?:div|a)\b(?<attrs>[^>]*\bclass\s*=\s*["'][^"']*\bfm-row\b[^"']*["'][^>]*)>/gi)];
+  const links = [];
+  const seen = new Set();
+  for (let index = 0; index < rows.length && links.length < 100; index += 1) {
+    const row = rows[index];
+    const attrs = parseAttrs(row.groups.attrs);
+    const raw = attrs.href || attrs.onclick?.match(/(?:window\.)?location(?:\.href)?\s*=\s*(["'])([^"']+)\1/)?.[2];
+    const target = normalizeUrl(raw, pageUrl);
+    if (!raw || !target || seen.has(target)) continue;
+    const parsed = new URL(target);
+    if (parsed.origin !== new URL(pageUrl).origin || !/^\/go\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(parsed.pathname)) continue;
+    // The signed token's filename identifies file rows; it never supplies a guessed media URL.
+    try {
+      const token = parsed.pathname.slice(4).split('.')[0].replaceAll('-', '+').replaceAll('_', '/');
+      const bytes = Uint8Array.from(atob(token.padEnd(Math.ceil(token.length / 4) * 4, '=')), (character) => character.charCodeAt(0));
+      const metadata = JSON.parse(new TextDecoder().decode(bytes));
+      if (typeof metadata.n !== 'string' || !VIDEO_EXTENSIONS.some((extension) => metadata.n.toLowerCase().endsWith(`.${extension}`))) continue;
+    } catch { continue; }
+    const content = html.slice(row.index, rows[index + 1]?.index || Math.min(html.length, row.index + 65536));
+    const imageAttrs = content.match(/<img\b([^>]*)>/i)?.[1];
+    const thumbnailUrl = imageAttrs ? normalizeThumbnailUrl(parseAttrs(imageAttrs).src, pageUrl) : '';
+    seen.add(target);
+    links.push({ url: target, thumbnailUrl });
+  }
+  return links;
+}
+
+async function extractDirectoryVideos(links, fetchImpl) {
+  const results = Array.from({ length: links.length }, () => []);
+  await Promise.all(Array.from({ length: Math.min(3, links.length) }, async (_, worker) => {
+    for (let index = worker; index < links.length; index += 3) {
+      const link = links[index];
+      try {
+        const page = await fetchNavigationPage(link.url, fetchImpl, true);
+        const media = page.directMedia ? [{ url: page.pageUrl, kind: kindForUrl(page.pageUrl), source: "Directory player" }]
+          : extractVideoUrls(page.html, page.pageUrl).filter((item) => item.kind !== "embed" && item.url !== page.pageUrl);
+        results[index] = media.map((item) => ({
+          ...item, sourcePage: page.pageUrl,
+          ...(!item.thumbnailUrl && link.thumbnailUrl ? { thumbnailUrl: link.thumbnailUrl } : {}),
+        }));
+      } catch { /* Other public file rows remain usable when one link has expired. */ }
+    }
+  }));
+  return dedupeCandidates(results.flat());
+}
+
+export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch, html = "") {
   const url = new URL(pageUrl);
+  const directoryLinks = extractDirectoryLinks(html, pageUrl);
+  if (directoryLinks.length) return extractDirectoryVideos(directoryLinks, fetchImpl);
   const gofileResults = await extractGofileUrls(url, pageUrl, fetchImpl);
   if (gofileResults.length) {
     return gofileResults;
@@ -257,14 +369,19 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
     return [];
   }
 
-  const payload = await fetchViloloJson(
+  const useLocalApi = usesViloloLocalApi(url.hostname) || url.pathname.startsWith("/d/");
+  const params = { externalLinks: shortLink, domain: url.hostname };
+  let payload = await fetchViloloJson(
     "/flow/land-page/getInfo",
-    {
-      externalLinks: shortLink,
-      domain: url.hostname,
-    },
+    params,
     fetchImpl,
+    useLocalApi,
   );
+  let localApi = useLocalApi;
+  if (!payload && useLocalApi && !usesViloloLocalApi(url.hostname)) {
+    payload = await fetchViloloJson("/flow/land-page/getInfo", params, fetchImpl, false);
+    localApi = false;
+  }
 
   if (!payload) {
     return [];
@@ -276,6 +393,7 @@ export async function extractKnownProviderUrls(pageUrl, fetchImpl = fetch) {
     url.hostname,
     pageUrl,
     fetchImpl,
+    localApi,
   );
 
   return dedupeCandidates([...currentResults, ...relatedResults]);
@@ -447,10 +565,6 @@ function getViloloLikeShortLink(url) {
 
   const isKnownViloloHost = VILOLO_PAGE_HOST_RE.test(url.hostname);
   const usesDPath = pathSegments.length === 2 && pathSegments[0] === "d";
-  if (usesDPath && !isKnownViloloHost) {
-    return "";
-  }
-
   const shortLink = pathSegments.length === 1 ? pathSegments[0] : usesDPath ? pathSegments[1] : "";
   if (!shortLink) {
     return "";
@@ -460,7 +574,7 @@ function getViloloLikeShortLink(url) {
     return "";
   }
 
-  if (isKnownViloloHost) {
+  if (isKnownViloloHost || (usesDPath && looksLikeShortShareHost(url.hostname))) {
     return shortLink;
   }
 
@@ -485,7 +599,7 @@ function looksLikeShortShareHost(hostname) {
   return labels.length >= 2 && labels.every((label) => /^[a-z0-9-]{1,63}$/.test(label));
 }
 
-async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
+async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl, localApi) {
   const externalLinks = getNestedValue(payload, [
     "data",
     "info",
@@ -511,6 +625,7 @@ async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
         sortOrder,
       },
       fetchImpl,
+      localApi,
     );
 
     const items = Array.isArray(relatedPayload?.data?.list)
@@ -531,27 +646,23 @@ async function extractViloloRelatedUrls(payload, domain, pageUrl, fetchImpl) {
   return extractFromJson(relatedPayloads, pageUrl, "Vilolo related API")
     .map((result) => ({
       ...result,
-      sourcePage: buildViloloLandingPageUrl(domain, result.landingPage) || pageUrl,
+      sourcePage: buildViloloLandingPageUrl(domain, result.landingPage, new URL(pageUrl).pathname.startsWith("/d/")) || pageUrl,
     }))
     .map(({ landingPage, ...result }) => result);
 }
 
-async function fetchViloloJson(path, params, fetchImpl) {
-  const apiUrl = buildViloloApiUrl(path, params.domain);
+async function fetchViloloJson(path, params, fetchImpl, localApi = usesViloloLocalApi(params.domain)) {
+  const apiUrl = buildViloloApiUrl(path, params.domain, localApi);
   Object.entries(params).forEach(([key, value]) => {
     apiUrl.searchParams.set(key, value);
   });
 
-  const response = await fetchImpl(apiUrl, {
-    headers: { Accept: "application/json" },
-    redirect: "follow",
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
   try {
+    const response = await fetchImpl(apiUrl, {
+      headers: { Accept: "application/json" },
+      redirect: "error",
+    });
+    if (!response.ok) { await response.body?.cancel(); return null; }
     const payload = await response.json();
     return payload?.code === 0 ? payload : null;
   } catch {
@@ -559,8 +670,8 @@ async function fetchViloloJson(path, params, fetchImpl) {
   }
 }
 
-function buildViloloApiUrl(path, domain) {
-  if (usesViloloLocalApi(domain)) {
+function buildViloloApiUrl(path, domain, localApi) {
+  if (localApi) {
     const apiUrl = new URL(`https://${domain}/api.php`);
     apiUrl.searchParams.set("endpoint", path);
     return apiUrl;
@@ -573,12 +684,12 @@ function getNestedValue(value, path) {
   return path.reduce((current, key) => current?.[key], value) || "";
 }
 
-function buildViloloLandingPageUrl(domain, landingPage) {
+function buildViloloLandingPageUrl(domain, landingPage, dPath = false) {
   if (!landingPage) {
     return "";
   }
 
-  if (usesViloloDPath(domain)) {
+  if (usesViloloDPath(domain) || dPath || /^\/?d\//.test(landingPage)) {
     const path = String(landingPage).replace(/^\/+/, "");
     const id = path.startsWith("d/") ? path.slice(2) : path;
     return `https://${domain}/d/${encodeURIComponent(id)}`;
@@ -883,7 +994,7 @@ function normalizeThumbnailUrl(rawValue, pageUrl) {
   if (!normalized) return "";
 
   const path = new URL(normalized).pathname.toLowerCase();
-  return IMAGE_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`))
+  return IMAGE_EXTENSIONS.some((extension) => path.endsWith(`.${extension}`)) || /\/(?:thumb(?:nail)?|cover|poster)\.php$/i.test(path)
     ? normalized
     : "";
 }

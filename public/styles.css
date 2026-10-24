@@ -20,6 +20,11 @@
 .load-more { margin-top: 16px; }
 .login-shell { max-width: 640px; }
 #login-form { display: grid; gap: 14px; }
+.capture-help { margin-top: 16px; color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
+.capture-help summary { cursor: pointer; color: var(--accent-strong); font-weight: 700; }
+.capture-help p { margin-top: 12px; }
+.capture-help ol { padding-left: 24px; }
+#capture-confirm { margin: 12px 12px 12px 0; }
 
 * {
   box-sizing: border-box;

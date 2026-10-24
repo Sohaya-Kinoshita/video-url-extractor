@@ -46,6 +46,18 @@
         </form>
 
         <div id="status" class="status" role="status" aria-live="polite"></div>
+        <details class="capture-help">
+          <summary>ブラウザから取り込む（確認が必要なサイト向け）</summary>
+          <p>最初に、このページをSafariのブックマークへ追加してください。</p>
+          <ol>
+            <li>下のボタンで取り込み用URLをコピーします。</li>
+            <li>追加したブックマークを編集し、名前を「動画を取り込む」、URLをコピーした内容に変更します。</li>
+            <li>元のサイトで動画を再生してから、そのブックマークを開きます。</li>
+          </ol>
+          <p>取り込み内容を確認すると、この画面へ戻ります。ログインを求められた場合は、ログイン後に取り込みを続けます。</p>
+          <button type="button" id="copy-capture-bookmark" class="copy-button">取り込み用URLをコピー</button>
+          <p id="capture-help-status" class="status" role="status"></p>
+        </details>
       </section>
 
       <section class="results-section" aria-labelledby="results-title">
@@ -59,7 +71,7 @@
       </section>
 
       <footer class="page-footer">
-        <p class="last-updated">最終更新: 2026-10-24 16:45 JST</p>
+        <p class="last-updated">最終更新: 2026-10-24 18:50 JST</p>
         <button type="button" class="logout-button" data-logout>ログアウト</button>
       </footer>
     </main>
@@ -67,5 +79,6 @@
     <script src="/storage.js"></script>
     <script src="/private.js" defer></script>
     <script src="/app.js" defer></script>
+    <script type="module" src="/capture-help.js"></script>
   </body>
 </html>

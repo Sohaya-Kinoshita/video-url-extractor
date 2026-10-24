@@ -353,7 +353,7 @@ describe("extractKnownProviderUrls", () => {
     ]);
   });
 
-  it("ignores non-Gofile pages when checking Gofile support", async () => {
+  it("does not send other domains to the Gofile API while probing compatible /d/ mirrors", async () => {
     const requestedUrls = [];
     const results = await extractKnownProviderUrls(
       "https://example.com/d/65pGBWhc",
@@ -363,7 +363,10 @@ describe("extractKnownProviderUrls", () => {
       },
     );
 
-    assert.deepEqual(requestedUrls, []);
+    assert.deepEqual(requestedUrls, [
+      "https://example.com/api.php?endpoint=%2Fflow%2Fland-page%2FgetInfo&externalLinks=65pGBWhc&domain=example.com",
+      "https://rwzugqnp.fun800.click/app-api/flow/land-page/getInfo?externalLinks=65pGBWhc&domain=example.com",
+    ]);
     assert.deepEqual(results, []);
   });
 

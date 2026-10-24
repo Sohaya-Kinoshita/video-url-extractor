@@ -1,6 +1,6 @@
 import {
-  extractVideoUrls,
-  extractKnownProviderUrls,
+  createExtractionFetch,
+  extractPageVideos,
   extractLinkedPageUrls,
   fetchHtml,
   jsonResponse,
@@ -14,17 +14,17 @@ export async function onRequestPost({ request, env }) {
   try {
     const body = await readJsonBody(request);
     const targetUrl = validatePageUrl(body.url);
-    const { html, pageUrl } = await fetchHtml(targetUrl);
-    const primaryResults = [
-      ...(await extractKnownProviderUrls(pageUrl)),
-      ...extractVideoUrls(html, pageUrl),
-    ].map((result) => ({ ...result, sourcePage: result.sourcePage || pageUrl }));
+    const budget = createExtractionFetch();
+    const { html, pageUrl } = await fetchHtml(targetUrl, budget.fetch);
+    const primaryResults = (await extractPageVideos(html, pageUrl, budget.fetch))
+      .map((result) => ({ ...result, sourcePage: result.sourcePage || pageUrl }));
 
     const linkedPageResults =
       body.scanLinkedPages === false
         ? []
-        : await extractLinkedPageResults(html, pageUrl);
+        : await extractLinkedPageResults(html, pageUrl, budget.fetch);
     const results = dedupeResults([...primaryResults, ...linkedPageResults]);
+    const scannedPageCount = Math.max(1, budget.scannedPages);
 
     let historySaved = false;
     if (env?.DB) {
@@ -32,14 +32,15 @@ export async function onRequestPost({ request, env }) {
         await env.DB.prepare(`INSERT INTO extraction_history
           (input_url,page_url,result_count,scanned_page_count,created_at) VALUES (?,?,?,?,?)`)
           .bind(targetUrl.href || String(targetUrl), pageUrl, results.length,
-            1 + (linkedPageResults.scannedPageCount || 0), new Date().toISOString()).run();
+            scannedPageCount, new Date().toISOString()).run();
         historySaved = true;
       } catch { /* Extraction results remain usable when history storage is unavailable. */ }
     }
     return jsonResponse({
       historySaved,
+      warnings: budget.limited ? ["探索件数の上限に達したため、一部のリンクを省略しました。必要なページのURLで再探索してください。"] : [],
       pageUrl,
-      scannedPageCount: 1 + (linkedPageResults.scannedPageCount || 0),
+      scannedPageCount,
       count: results.length,
       results,
     });
@@ -55,7 +56,7 @@ export async function onRequestGet() {
   return jsonResponse({ error: "POSTでURLを送信してください。" }, 405);
 }
 
-async function extractLinkedPageResults(html, pageUrl) {
+async function extractLinkedPageResults(html, pageUrl, fetchImpl) {
   const linkedPages = extractLinkedPageUrls(html, pageUrl, LINKED_PAGE_LIMIT);
   const collected = [];
   let scannedPageCount = 0;
@@ -64,16 +65,13 @@ async function extractLinkedPageResults(html, pageUrl) {
     linkedPages.map(async (linkedPageUrl) => {
       try {
         const safeUrl = validatePageUrl(linkedPageUrl);
-        const linkedPage = await fetchHtml(safeUrl);
+        const linkedPage = await fetchHtml(safeUrl, fetchImpl);
         scannedPageCount += 1;
 
-        const results = [
-          ...(await extractKnownProviderUrls(linkedPage.pageUrl)),
-          ...extractVideoUrls(linkedPage.html, linkedPage.pageUrl),
-        ].map((result) => ({
+        const results = (await extractPageVideos(linkedPage.html, linkedPage.pageUrl, fetchImpl)).map((result) => ({
           ...result,
           source: `${result.source} / リンク先`,
-          sourcePage: linkedPage.pageUrl,
+          sourcePage: result.sourcePage || linkedPage.pageUrl,
         }));
 
         collected.push(...results);

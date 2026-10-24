@@ -8,6 +8,7 @@ import { onRequest as saved } from '../functions/api/saved.js';
 import { onRequestPost as importSaved } from '../functions/api/import.js';
 import { onRequestGet as history } from '../functions/api/history.js';
 import { onRequestPost as extract } from '../functions/api/extract.js';
+import { onRequestPost as capture } from '../functions/api/capture.js';
 
 const origin = 'https://extractor.example.com';
 const password = 'test-only-random-password-0123456789';
@@ -20,7 +21,7 @@ async function fixture(t) {
     const req = new Request(origin + path, { method,
       headers: { Origin: origin, 'Content-Type': 'application/json', Cookie: cookie, ...extra },
       body: body === undefined ? undefined : JSON.stringify(body) });
-    const handler = { '/api/auth': auth, '/api/saved': saved, '/api/import': importSaved, '/api/history': history, '/api/extract': extract }[new URL(req.url).pathname];
+    const handler = { '/api/auth': auth, '/api/saved': saved, '/api/import': importSaved, '/api/history': history, '/api/extract': extract, '/api/capture': capture }[new URL(req.url).pathname];
     const context = { request: req, env, next: () => handler ? handler(context) : new Response('private page') };
     return middleware(context);
   }
@@ -35,7 +36,7 @@ async function fixture(t) {
 
 it('protects all APIs and private pages; missing configuration fails closed', async (t) => {
   const f = await fixture(t);
-  for (const path of ['/api/saved', '/api/history', '/api/extract', '/api/download?url=https://media.example/a.mp4']) {
+  for (const path of ['/api/saved', '/api/history', '/api/extract', '/api/capture', '/api/download?url=https://media.example/a.mp4']) {
     assert.equal((await f.request(path)).status, 401);
   }
   for (const path of ['/', '/saved', '/saved.html', '/history', '/mp4.html?url=x']) {
@@ -45,6 +46,25 @@ it('protects all APIs and private pages; missing configuration fails closed', as
   }
   f.env.OWNER_PASSWORD_SHA256 = '';
   assert.equal((await f.request('/api/saved')).status, 503);
+});
+
+it('imports browser results with authentication, validates URLs and records history without refetching the protected page', async (t) => {
+  const f = await fixture(t);
+  await f.login();
+  t.mock.method(globalThis, 'fetch', () => { throw new Error('Capture must not refetch remote pages'); });
+  const signed = 'https://media.example/clip.m3u8?key=a%2Bb';
+  const response = await f.request('/api/capture', 'POST', { pageUrl: 'https://article.example/article/id', items: [{ url: signed }, { url: signed }] });
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.historySaved, true);
+  assert.equal(data.results.length, 1);
+  assert.equal(data.results[0].url, signed);
+  assert.equal(data.results[0].kind, 'hls');
+  assert.equal((await (await f.request('/api/history')).json()).items.length, 1);
+  for (const url of ['http://127.0.0.1/x.mp4', 'javascript:alert(1)', 'https://media.example/not-video']) {
+    assert.equal((await f.request('/api/capture', 'POST', { pageUrl: 'https://article.example/article/id', items: [{ url }] })).status, 400);
+  }
+  assert.equal((await (await f.request('/api/history')).json()).items.length, 1);
 });
 
 it('logs in with a secure cookie, rejects cross-origin writes and revokes logout/rotated sessions', async (t) => {
